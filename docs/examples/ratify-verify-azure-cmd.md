@@ -44,8 +44,8 @@ tar xvzf ratify.tar.gz -C ~/bin ratify
 
 ### Set up ACR and Auth information
 ```bash
-export ACR_NAME=wabbitnetworks
-export REGISTRY=$ACR_NAME.azurecr-test.io
+export ACR_NAME=wabbitnetworkslibinbin
+export REGISTRY=$ACR_NAME.azurecr.io
 export REPO=${REGISTRY}/net-monitor
 export IMAGE=${REPO}:v1
 
@@ -59,7 +59,7 @@ az acr update --anonymous-pull-enabled true
 # Using ACR Auth with Tokens
 export NOTATION_USERNAME='wabbitnetworks-token'
 export NOTATION_PASSWORD=$(az acr token create -n $NOTATION_USERNAME \
-                    -r wabbitnetworks \
+                    -r wabbitnetworkslibinbin \
                     --scope-map _repositories_admin \
                     --only-show-errors \
                     -o json | jq -r ".credentials.passwords[0].value")
@@ -144,7 +144,7 @@ EOF
 
 ```bash
 # Query for the signatures
-export IMAGE_DIGEST_REF=$(docker image inspect $IMAGE | jq -r '.[0].RepoDigests[0]')
+export IMAGE_DIGEST_REF=$(docker image inspect $IMAGE | jq -r '.[0].RepoDigests[1]')
 ratify discover -s $IMAGE_DIGEST_REF
 ``` 
 - Verify all signatures for the image

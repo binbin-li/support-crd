@@ -18,6 +18,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/deislabs/ratify/pkg/common"
@@ -85,6 +86,7 @@ func (executor Executor) verifySubjectInternal(ctx context.Context, verifyParame
 
 	for _, referrerStore := range executor.ReferrerStores {
 		var continuationToken string
+		wg := sync.WaitGroup{}
 		for {
 			referrersResult, err := referrerStore.ListReferrers(ctx, subjectReference, verifyParameters.ReferenceTypes, continuationToken, desc)
 			if err != nil {
@@ -93,24 +95,21 @@ func (executor Executor) verifySubjectInternal(ctx context.Context, verifyParame
 			continuationToken = referrersResult.NextToken
 
 			for _, reference := range referrersResult.Referrers {
+				wg.Add(1)
+				go func(reference ocispecs.ReferenceDescriptor) {
+					defer wg.Done()
+					if executor.PolicyEnforcer.VerifyNeeded(ctx, subjectReference, reference) {
+						verifyResult := executor.verifyReference(context.Background(), subjectReference, desc, reference, referrerStore)
 
-				if executor.PolicyEnforcer.VerifyNeeded(ctx, subjectReference, reference) {
-					verifyResult := executor.verifyReference(ctx, subjectReference, desc, reference, referrerStore)
-					verifierReports = append(verifierReports, verifyResult.VerifierReports...)
-
-					if !verifyResult.IsSuccess {
-						result := types.VerifyResult{IsSuccess: false, VerifierReports: verifierReports}
-						if !executor.PolicyEnforcer.ContinueVerifyOnFailure(ctx, subjectReference, reference, result) &&
-							executor.Config.ExecutionMode != config.PassthroughExecutionMode {
-							return result, nil
-						}
+						verifierReports = append(verifierReports, verifyResult.VerifierReports...)
 					}
-				}
+				}(reference)
 			}
 			if continuationToken == "" {
 				break
 			}
 		}
+		wg.Wait()
 	}
 
 	if len(verifierReports) == 0 {

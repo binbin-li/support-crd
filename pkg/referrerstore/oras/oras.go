@@ -146,7 +146,7 @@ func (store *orasStore) ListReferrers(ctx context.Context, subjectReference comm
 	artifactTypeFilter := ""
 	var referrerDescriptors []artifactspec.Descriptor
 	if err := repository.Referrers(ctx, resolvedSubjectDesc.Descriptor, artifactTypeFilter, func(referrers []artifactspec.Descriptor) error {
-		referrerDescriptors = referrers
+		referrerDescriptors = append(referrerDescriptors, referrers...)
 		return nil
 	}); err != nil {
 		store.evictAuthCache(subjectReference.Original, err)
@@ -157,6 +157,7 @@ func (store *orasStore) ListReferrers(ctx context.Context, subjectReference comm
 
 	// convert artifact descriptors to oci descriptor with artifact type
 	var referrers []ocispecs.ReferenceDescriptor
+	fmt.Printf("referrerDescriptors: %d\n", len(referrerDescriptors))
 	for _, referrer := range referrerDescriptors {
 		referrers = append(referrers, ArtifactDescriptorToReferenceDescriptor(referrer))
 	}
@@ -226,10 +227,14 @@ func (store *orasStore) GetReferenceManifest(ctx context.Context, subjectReferen
 	if err != nil {
 		return ocispecs.ReferenceManifest{}, err
 	}
+	isCached = false
 
 	if !isCached {
 		// fetch manifest content from repository
+		starttime := time.Now()
+		fmt.Printf("%v ORAS fetch manifest start\n", time.Now().UTC())
 		manifestReader, err := repository.Fetch(ctx, referenceDesc.Descriptor)
+		fmt.Printf("%v ORAS fetch manifest duration: %d\n", time.Now().UTC(), time.Since(starttime).Milliseconds())
 		if err != nil {
 			store.evictAuthCache(subjectReference.Original, err)
 			return ocispecs.ReferenceManifest{}, err
