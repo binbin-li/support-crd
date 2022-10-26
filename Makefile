@@ -87,7 +87,7 @@ delete-gatekeeper:
 
 .PHONY: test-e2e
 test-e2e:
-	bats -t ${BATS_TESTS_FILE}
+	bats -p ${BATS_TESTS_FILE}
 
 e2e-dependencies:
 	# Download and install kind
