@@ -54,6 +54,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      id-token: write
     strategy:
       matrix:
         KUBERNETES_VERSION: ["1.24.6"]
@@ -64,23 +65,41 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: 1.19
+      
+      - name: Az CLI login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Bootstrap e2e
         run: |
           mkdir -p $GITHUB_WORKSPACE/bin
           echo "$GITHUB_WORKSPACE/bin" >> $GITHUB_PATH
           make e2e-bootstrap KUBERNETES_VERSION=${{ matrix.KUBERNETES_VERSION }}
+
+      - name: Run az commands
+        run: |
+          az account show
+          az group list
+          pwd
+          az aks get-credentials --resource-group 1 --name libinbinaks
+
       - name: Run e2e
         run: |
+          make clean-up
           make e2e-deploy-gatekeeper
-          make e2e-deploy-ratify
+          make e2e-deploy-ratify APPLICATION_CLIENT_ID=${{ secrets.APPLICATION_CLIENT_ID }}
           make test-e2e
+          make clean-up
       - name: Save logs
         if: ${{ always() }}
         run: |
           kubectl logs -n gatekeeper-system -l control-plane=controller-manager --tail=-1 > logs-externaldata-controller.json
           kubectl logs -n gatekeeper-system -l control-plane=audit-controller --tail=-1 > logs-externaldata-audit.json
-          kubectl logs -n ratify-service -l app=ratify --tail=-1 > logs-ratify-preinstall.json
-          kubectl logs -n ratify-service -l app.kubernetes.io/name=ratify --tail=-1 > logs-ratify.json
+          kubectl logs -n default -l app=ratify --tail=-1 > logs-ratify-preinstall.json
+          kubectl logs -n default -l app.kubernetes.io/name=ratify --tail=-1 > logs-ratify.json
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         if: ${{ always() }}

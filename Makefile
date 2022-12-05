@@ -69,7 +69,7 @@ delete-demo: delete-demo-constraints delete-ratify delete-gatekeeper
 
 .PHONY: deploy-ratify
 deploy-ratify:
-	helm install ratify ./charts/ratify --atomic
+	helm install ratify ./charts/ratify --atomic --debug
 
 .PHONY: delete-ratify
 delete-ratify:
@@ -133,7 +133,7 @@ e2e-helm-install:
 	cd .staging/helm && tar -xvf helmbin.tar.gz
 	./.staging/helm/linux-amd64/helm version --client
 
-e2e-deploy-gatekeeper: e2e-helm-install
+e2e-deploy-gatekeeper: e2e-helm-install uninstall-gatekeeper
 	./.staging/helm/linux-amd64/helm repo add gatekeeper https://open-policy-agent.github.io/gatekeeper/charts
 	./.staging/helm/linux-amd64/helm install gatekeeper/gatekeeper  \
     --name-template=gatekeeper \
@@ -142,15 +142,25 @@ e2e-deploy-gatekeeper: e2e-helm-install
     --set validatingWebhookTimeoutSeconds=7 \
     --set auditInterval=0
 
-e2e-deploy-ratify:
-	docker build --progress=plain --no-cache -f ./httpserver/Dockerfile -t localbuild:test .
-	kind load docker-image --name kind localbuild:test
+e2e-deploy-ratify: uninstall-ratify
+	# docker build --progress=plain --no-cache -f ./httpserver/Dockerfile -t localbuild:test .
+	# kind load docker-image --name kind localbuild:test
 	
-	docker build --progress=plain --no-cache --build-arg KUBE_VERSION=${KUBERNETES_VERSION} --build-arg TARGETOS="linux" --build-arg TARGETARCH="amd64" -f crd.Dockerfile -t localbuildcrd:test ./charts/ratify/crds
-	kind load docker-image --name kind localbuildcrd:test
+	# docker build --progress=plain --no-cache --build-arg KUBE_VERSION="1.25.0" --build-arg TARGETOS="linux" --build-arg TARGETARCH="amd64" -f crd.Dockerfile -t localbuildcrd:test ./charts/ratify/crds
+	# kind load docker-image --name kind localbuildcrd:test
 
 	./.staging/helm/linux-amd64/helm install ratify \
-    ./charts/ratify --atomic --namespace ratify-service --create-namespace --set image.repository=localbuild --set image.crdRepository=localbuildcrd --set image.tag=test
+    ./charts/ratify --atomic --set image.repository=libinbinacr.azurecr-test.io/deislabs/ratify --set image.crdRepository=libinbinacr.azurecr-test.io/localbuildcrd --set image.tag=test --set image.pullPolicy=Always --set azureWorkloadIdentity.clientId=0feb3a4d-3982-4b8a-8874-7e1c11b98b23 --set oras.authProviders.azureWorkloadIdentityEnabled=true
+
+uninstall-gatekeeper:
+	kubectl delete -f https://raw.githubusercontent.com/open-policy-agent/gatekeeper/master/deploy/gatekeeper.yaml || true
+
+uninstall-ratify:
+	./.staging/helm/linux-amd64/helm uninstall ratify || true
+
+.PHONY: clean-up
+clean-up: uninstall-ratify uninstall-gatekeeper
+	kubectl delete -f https://deislabs.github.io/ratify/library/default/template.yaml || true
 
 ##@ Development
 
@@ -219,3 +229,7 @@ $(KUSTOMIZE): $(LOCALBIN)
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
 	test -s $(LOCALBIN)/controller-gen || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+
+.PHONY: az-setup
+az-setup:
+	az ad app show --id 0feb3a4d-3982-4b8a-8874-7e1c11b98b23 --query id -otsv
