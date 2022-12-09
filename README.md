@@ -8,6 +8,7 @@ by its developers, nor is it "supported" software.
 [![Go Report Card](https://goreportcard.com/badge/github.com/deislabs/ratify)](https://goreportcard.com/report/github.com/deislabs/ratify)
 [![build-pr](https://github.com/deislabs/ratify/actions/workflows/build-pr.yml/badge.svg)](https://github.com/deislabs/ratify/actions/workflows/build-pr.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/deislabs/ratify/badge)](https://api.securityscorecards.dev/projects/github.com/deislabs/ratify)
+[![codecov](https://codecov.io/gh/deislabs/ratify/branch/main/graph/badge.svg)](https://codecov.io/gh/deislabs/ratify)
 
 ## Table of Contents
 
