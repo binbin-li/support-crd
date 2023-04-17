@@ -21,3 +21,4 @@ var (
 	// ErrReferrersNotFound is thrown when there aren't any references for an artifact
 	ErrReferrersNotFound = errors.New("no referrers found for this artifact")
 )
+
