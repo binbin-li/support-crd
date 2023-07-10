@@ -7,8 +7,9 @@ WAIT_TIME=60
 SLEEP_TIME=1
 
 @test "cert rotator test" {
-    helm upgrade --namespace gatekeeper-system --reuse-values --set featureFlags.RATIFY_CERT_ROTATION=true ratify ./charts/ratify
-    sleep 120
+    helm upgrade --namespace gatekeeper-system --reuse-values --set featureFlags.RATIFY_CERT_ROTATION=true ratify ./charts/ratify --atomic
+    histroy = $(helm history ratify -n gatekeeper-system)
+    echo $history
 
     run [ "$(kubectl get secret ratify-tls -n gatekeeper-system -o json | jq '.data."ca.crt"')" != "$(cat ${EXPIRING_CERT_DIR}/ca.crt | base64 | tr -d '\n')" ]
     assert_success
@@ -222,10 +223,18 @@ SLEEP_TIME=1
     }
 
     start=$(date --iso-8601=seconds)
+    echo $start
     latestpod=$(kubectl -n gatekeeper-system get pod -l=app.kubernetes.io/name=ratify --sort-by=.metadata.creationTimestamp -o=name | tail -n 1)
+    echo $latestpod
+
+    allpods=$(kubectl -n gatekeeper-system get pod -l=app.kubernetes.io/name=ratify --sort-by=.metadata.creationTimestamp -o=name)
+    echo $allpods
 
     run kubectl apply -f ./config/samples/config_v1beta1_verifier_dynamic.yaml
     sleep 5
+
+    logs=$(kubectl -n gatekeeper-system logs $latestpod)
+    echo $logs
 
     run bash -c "kubectl -n gatekeeper-system logs $latestpod --since-time=$start | grep 'dynamic plugins are currently disabled'"
     assert_success
