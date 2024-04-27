@@ -35,7 +35,7 @@ updates:
       prefix: "chore"
 
   - package-ecosystem: "docker"
-    directory: "/.github"
+    directory: "/.devcontainer"
     schedule:
       interval: "daily"
     commit-message:
