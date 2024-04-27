@@ -26,4 +26,17 @@ updates:
       interval: "daily"
     commit-message:
       prefix: "chore"
-        
+
+  - package-ecosystem: "docker"
+    directory: "/httpserver"
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "chore"
+
+  - package-ecosystem: "docker"
+    directory: "/.github"
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "chore"
