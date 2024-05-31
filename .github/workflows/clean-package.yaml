@@ -17,3 +17,9 @@ jobs:
           package-type: 'container'
           min-versions-to-keep: 7
           delete-only-pre-release-versions: "true"
+      - uses: actions/delete-package-versions@v5
+        with: 
+          package-name: 'ratify-dev'
+          package-type: 'container'
+          min-versions-to-keep: 7
+          delete-only-pre-release-versions: "true"
