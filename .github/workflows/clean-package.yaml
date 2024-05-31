@@ -15,5 +15,5 @@ jobs:
         with: 
           package-name: 'ratify-crds-dev'
           package-type: 'container'
-          min-versions-to-keep: 10
+          min-versions-to-keep: 7
           delete-only-pre-release-versions: "true"
