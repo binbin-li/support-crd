@@ -9,6 +9,8 @@ permissions:
 jobs:
   cleanup:
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
     steps:
       - uses: actions/delete-package-versions@v5
         with: 
