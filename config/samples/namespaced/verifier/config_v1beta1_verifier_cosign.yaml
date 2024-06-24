@@ -12,3 +12,4 @@ spec:
           - "*"
         keys:
           - provider: default/ratify-cosign-inline-key-0
+        tLogVerify: false

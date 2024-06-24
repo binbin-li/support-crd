@@ -15,7 +15,7 @@ BINARY_NAME		= ratify
 INSTALL_DIR		= ~/.ratify
 CERT_DIR        = ${GITHUB_WORKSPACE}/tls/certs
 
-GO_PKG			= github.com/deislabs/ratify
+GO_PKG			= github.com/ratify-project/ratify
 GIT_COMMIT_HASH = $(shell git rev-parse HEAD)
 GIT_TREE_STATE 	= $(shell test -n "`git status --porcelain`" && echo "modified" || echo "unmodified")
 GIT_TAG     	= $(shell git describe --tags --abbrev=0 --exact-match 2>/dev/null)
@@ -65,6 +65,7 @@ TEST_REGISTRY_PASSWORD = test_pw
 # Azure Key Vault Setup
 KEYVAULT_NAME ?= ratify-akv
 KEYVAULT_KEY_NAME ?= test-key
+AZURE_SP_OBJECT_ID ?= 00000000-0000-0000-0000-000000000000
 
 all: build test
 
@@ -74,17 +75,17 @@ build: build-cli build-plugins
 .PHONY: build-cli
 build-cli: fmt vet
 	go build --ldflags="$(LDFLAGS)" -cover \
-	-coverpkg=github.com/deislabs/ratify/pkg/...,github.com/deislabs/ratify/config/...,github.com/deislabs/ratify/cmd/... \
+	-coverpkg=github.com/ratify-project/ratify/pkg/...,github.com/ratify-project/ratify/config/...,github.com/ratify-project/ratify/cmd/... \
 	-o ./bin/${BINARY_NAME} ./cmd/${BINARY_NAME}
 
 .PHONY: build-plugins
 build-plugins:
-	go build -cover -coverpkg=github.com/deislabs/ratify/plugins/verifier/licensechecker/... -o ./bin/plugins/ ./plugins/verifier/licensechecker
-	go build -cover -coverpkg=github.com/deislabs/ratify/plugins/verifier/sample/... -o ./bin/plugins/ ./plugins/verifier/sample
-	go build -cover -coverpkg=github.com/deislabs/ratify/plugins/referrerstore/sample/... -o ./bin/plugins/referrerstore/ ./plugins/referrerstore/sample
-	go build -cover -coverpkg=github.com/deislabs/ratify/plugins/verifier/sbom/... -o ./bin/plugins/ ./plugins/verifier/sbom
-	go build -cover -coverpkg=github.com/deislabs/ratify/plugins/verifier/schemavalidator/... -o ./bin/plugins/ ./plugins/verifier/schemavalidator
-	go build -cover -coverpkg=github.com/deislabs/ratify/plugins/verifier/vulnerabilityreport/... -o ./bin/plugins/ ./plugins/verifier/vulnerabilityreport
+	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/licensechecker/... -o ./bin/plugins/ ./plugins/verifier/licensechecker
+	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/sample/... -o ./bin/plugins/ ./plugins/verifier/sample
+	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/referrerstore/sample/... -o ./bin/plugins/referrerstore/ ./plugins/referrerstore/sample
+	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/sbom/... -o ./bin/plugins/ ./plugins/verifier/sbom
+	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/schemavalidator/... -o ./bin/plugins/ ./plugins/verifier/schemavalidator
+	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/vulnerabilityreport/... -o ./bin/plugins/ ./plugins/verifier/vulnerabilityreport
 
 .PHONY: install
 install:
@@ -521,10 +522,12 @@ e2e-deploy-gatekeeper: e2e-helm-install
 	./.staging/helm/linux-amd64/helm install gatekeeper/gatekeeper --version ${GATEKEEPER_VERSION} --name-template=gatekeeper --namespace ${GATEKEEPER_NAMESPACE} --create-namespace --set enableExternalData=true --set validatingWebhookTimeoutSeconds=5 --set mutatingWebhookTimeoutSeconds=2 --set auditInterval=0 --set externaldataProviderResponseCacheTTL=1s
 
 e2e-build-crd-image:
-	docker build --progress=plain --no-cache --build-arg KUBE_VERSION=${KUBERNETES_VERSION} --build-arg TARGETOS="linux" --build-arg TARGETARCH="amd64" -f crd.Dockerfile -t localbuildcrd:test ./charts/ratify/crds
+	docker build --progress=plain --no-cache --build-arg KUBE_VERSION=${KUBERNETES_VERSION} --build-arg TARGETOS="linux" --build-arg TARGETARCH="amd64" -f crd.Dockerfile -t localbuildcrd:test ./charts/ratify/crds	
+
+load-build-crd-image:
 	kind load docker-image --name kind localbuildcrd:test
 
-e2e-deploy-base-ratify: e2e-notation-setup e2e-notation-leaf-cert-setup e2e-cosign-setup e2e-inlinecert-setup e2e-build-crd-image e2e-build-local-ratify-base-image
+e2e-deploy-base-ratify: e2e-notation-setup e2e-notation-leaf-cert-setup e2e-cosign-setup e2e-inlinecert-setup e2e-build-crd-image load-build-crd-image e2e-build-local-ratify-base-image
 	printf "{\n\t\"auths\": {\n\t\t\"registry:5000\": {\n\t\t\t\"auth\": \"`echo "${TEST_REGISTRY_USERNAME}:${TEST_REGISTRY_PASSWORD}" | tr -d '\n' | base64 -i -w 0`\"\n\t\t}\n\t}\n}" > mount_config.json
 
 	./.staging/helm/linux-amd64/helm install ${RATIFY_NAME} \
@@ -548,7 +551,7 @@ e2e-deploy-base-ratify: e2e-notation-setup e2e-notation-leaf-cert-setup e2e-cosi
 
 	rm mount_config.json
 
-e2e-deploy-ratify: e2e-notation-setup e2e-notation-leaf-cert-setup e2e-cosign-setup e2e-cosign-setup e2e-licensechecker-setup e2e-sbom-setup e2e-schemavalidator-setup e2e-vulnerabilityreport-setup e2e-inlinecert-setup e2e-build-crd-image e2e-build-local-ratify-image e2e-helm-deploy-ratify
+e2e-deploy-ratify: e2e-notation-setup e2e-notation-leaf-cert-setup e2e-cosign-setup e2e-cosign-setup e2e-licensechecker-setup e2e-sbom-setup e2e-schemavalidator-setup e2e-vulnerabilityreport-setup e2e-inlinecert-setup e2e-build-crd-image load-build-crd-image e2e-build-local-ratify-image load-local-ratify-image e2e-helm-deploy-ratify
 
 e2e-build-local-ratify-base-image:
 	docker build --progress=plain --no-cache \
@@ -564,10 +567,12 @@ e2e-build-local-ratify-image:
 	--build-arg build_vulnerabilityreport=true \
 	-f ./httpserver/Dockerfile \
 	-t localbuild:test .
+
+load-local-ratify-image:
 	kind load docker-image --name kind localbuild:test
 
 e2e-helmfile-deploy-released-ratify:
-	./.staging/helmfilebin/helmfile sync -f git::https://github.com/deislabs/ratify.git@helmfile.yaml
+	./.staging/helmfilebin/helmfile sync -f git::https://github.com/ratify-project/ratify.git@helmfile.yaml
 
 e2e-helm-deploy-ratify:
 	printf "{\n\t\"auths\": {\n\t\t\"registry:5000\": {\n\t\t\t\"auth\": \"`echo "${TEST_REGISTRY_USERNAME}:${TEST_REGISTRY_PASSWORD}" | tr -d '\n' | base64 -i -w 0`\"\n\t\t}\n\t}\n}" > mount_config.json
@@ -587,6 +592,7 @@ e2e-helm-deploy-ratify:
 	--set notationCerts[0]="$$(cat ~/.config/notation/localkeys/ratify-bats-test.crt)" \
 	--set cosignKeys[0]="$$(cat .staging/cosign/cosign.pub)" \
 	--set cosign.key="$$(cat .staging/cosign/cosign.pub)" \
+	--set cosign.tLogVerify=false \
 	--set oras.useHttp=true \
 	--set-file dockerConfig="mount_config.json" \
 	--set logger.level=debug
@@ -603,9 +609,10 @@ e2e-helm-deploy-ratify-without-tls-certs:
 	--set image.tag=test \
 	--set gatekeeper.version=${GATEKEEPER_VERSION} \
 	--set featureFlags.RATIFY_CERT_ROTATION=${CERT_ROTATION_ENABLED} \
-	--set notaryCert="$$(cat ~/.config/notation/localkeys/ratify-bats-test.crt)" \
+	--set notationCerts[0]="$$(cat ~/.config/notation/localkeys/ratify-bats-test.crt)" \
 	--set cosign.key="$$(cat .staging/cosign/cosign.pub)" \
 	--set cosignKeys[0]="$$(cat .staging/cosign/cosign.pub)" \
+	--set cosign.tLogVerify=false \
 	--set oras.useHttp=true \
 	--set-file dockerConfig="mount_config.json" \
 	--set logger.level=debug
@@ -629,7 +636,7 @@ e2e-helm-deploy-redis: e2e-helm-deploy-dapr
 	kubectl apply -f test/testdata/dapr/dapr-redis-secret.yaml -n ${GATEKEEPER_NAMESPACE}
 	kubectl apply -f test/testdata/dapr/dapr-redis.yaml -n ${GATEKEEPER_NAMESPACE}
  
-e2e-helm-deploy-ratify-replica: e2e-helm-deploy-redis e2e-notation-setup e2e-build-crd-image e2e-build-local-ratify-image
+e2e-helm-deploy-ratify-replica: e2e-helm-deploy-redis e2e-notation-setup e2e-build-crd-image load-build-crd-image e2e-build-local-ratify-image load-local-ratify-image
 	printf "{\n\t\"auths\": {\n\t\t\"registry:5000\": {\n\t\t\t\"auth\": \"`echo "${TEST_REGISTRY_USERNAME}:${TEST_REGISTRY_PASSWORD}" | tr -d '\n' | base64 -i -w 0`\"\n\t\t}\n\t}\n}" > mount_config.json
 
 	./.staging/helm/linux-amd64/helm install ${RATIFY_NAME} \
@@ -659,7 +666,7 @@ e2e-helm-deploy-ratify-replica: e2e-helm-deploy-redis e2e-notation-setup e2e-bui
 	rm mount_config.json
 
 e2e-aks:
-	./scripts/azure-ci-test.sh ${KUBERNETES_VERSION} ${GATEKEEPER_VERSION} ${TENANT_ID} ${GATEKEEPER_NAMESPACE} ${CERT_DIR}
+	./scripts/azure-ci-test.sh ${KUBERNETES_VERSION} ${GATEKEEPER_VERSION} ${TENANT_ID} ${GATEKEEPER_NAMESPACE} ${CERT_DIR} ${AZURE_SP_OBJECT_ID}
 
 e2e-cleanup:
 	./scripts/azure-ci-test-cleanup.sh ${AZURE_SUBSCRIPTION_ID}
