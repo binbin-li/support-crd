@@ -40,7 +40,7 @@ func UpsertVerifier(version, address, namespace, objectName string, verifierConf
 
 	referenceVerifier, err := vf.CreateVerifierFromConfig(verifierConfig, version, []string{address}, namespace)
 	if err != nil || referenceVerifier == nil {
-		logrus.Error(err, " unable to create verifier from verifier config")
+		logrus.Errorf("unable to create verifier from verifier config, err = %v", err)
 		return err
 	}
 

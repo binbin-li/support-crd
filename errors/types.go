@@ -61,6 +61,7 @@ type ErrorCode int
 // Error provides a wrapper around ErrorCode with extra Details provided.
 type Error struct {
 	OriginalError error         `json:"originalError,omitempty"`
+	RootCause     error         `json:"rootCause,omitempty"`
 	Code          ErrorCode     `json:"code"`
 	Message       string        `json:"message"`
 	Detail        interface{}   `json:"detail,omitempty"`
@@ -179,7 +180,20 @@ func (ec ErrorCode) NewError(componentType ComponentType, pluginName, link strin
 		PluginName:    pluginName,
 		LinkToDoc:     link,
 		Stack:         stack,
+		RootCause:     fetchRootCause(err),
 	}
+}
+
+func fetchRootCause(err error) error {
+	unwrappedErr := errors.Unwrap(err)
+	if unwrappedErr == nil {
+		return err
+	}
+	ratifyError := &Error{}
+	if errors.As(unwrappedErr, ratifyError) {
+		return ratifyError.RootCause
+	}
+	return unwrappedErr
 }
 
 func newError(code ErrorCode, message string) Error {
@@ -208,40 +222,60 @@ func (e Error) Unwrap() error {
 	return e.OriginalError
 }
 
+// GetErrReason returns Error Code and Root Cause of the error.
+func (e Error) GetErrReason() string {
+	errMsg := fmt.Sprintf("Error Code: %s, Root Cause: ", e.Code.String())
+	if e.RootCause == nil {
+		errMsg += e.GetErrDetail()
+	}
+	err := e.RootCause
+	rootErr := &Error{}
+
+	if errors.As(err, rootErr) {
+		errMsg += rootErr.GetErrDetail()
+	} else {
+		errMsg += err.Error()
+	}
+
+	return errMsg
+}
+
+// getErrDetail returns error detail or the default description if detail is nil.
+func (e Error) GetErrDetail() string {
+	if e.Detail != nil {
+		return fmt.Sprintf("%v", e.Detail)
+	}
+	return e.Code.Description()
+}
+
 // Error returns a human readable representation of the error.
 func (e Error) Error() string {
-	var errStr string
-	if e.OriginalError != nil {
-		errStr += fmt.Sprintf("Original Error: (%s), ", e.OriginalError.Error())
-	}
-
-	errStr += fmt.Sprintf("Error: %s, Code: %s", e.Message, e.Code.String())
+	errStr := fmt.Sprintf("\n\tError Code: %s\n", e.Code.String())
 
 	if e.PluginName != "" {
-		errStr += fmt.Sprintf(", Plugin Name: %s", e.PluginName)
+		errStr += fmt.Sprintf("\tPlugin Name: %s\n", e.PluginName)
 	}
 
-	if e.ComponentType != "" {
-		errStr += fmt.Sprintf(", Component Type: %s", e.ComponentType)
+	errStr += fmt.Sprintf("\tError Detail: %s\n", e.GetErrDetail())
+
+	if e.RootCause != nil {
+		indentedRootCause := indentString(e.RootCause.Error())
+		errStr += fmt.Sprintf("\tRoot Cause: %s\n", indentedRootCause)
 	}
 
 	if e.LinkToDoc != "" {
-		errStr += fmt.Sprintf(", Documentation: %s", e.LinkToDoc)
-	}
-
-	if e.Detail != nil {
-		errStr += fmt.Sprintf(", Detail: %v", e.Detail)
-	}
-
-	if e.Description != "" {
-		errStr += fmt.Sprintf(", Description: %v", e.Description)
+		errStr += fmt.Sprintf("\tTrouble Shooting Guide: %s\n", e.LinkToDoc)
 	}
 
 	if e.Stack != "" {
-		errStr += fmt.Sprintf(", Stack trace: %s", e.Stack)
+		errStr += fmt.Sprintf("\tStack trace: %s\n", e.Stack)
 	}
 
 	return errStr
+}
+
+func indentString(input string) string {
+	return "\t" + strings.ReplaceAll(input, "\n", "\n\t")
 }
 
 // WithDetail will return a new Error, based on the current one, but with

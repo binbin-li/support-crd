@@ -175,14 +175,15 @@ func (executor Executor) verifyReferenceForJSONPolicy(ctx context.Context, subje
 		if verifier.CanVerify(ctx, referenceDesc) {
 			verifierStartTime := time.Now()
 			verifyResult, err := verifier.Verify(ctx, subjectRef, referenceDesc, referrerStore)
-			verifyResult.Subject = subjectRef.String()
 			if err != nil {
+				newErr := errors.ErrorCodeVerifyReferenceFailure.NewError(errors.Verifier, verifier.Name(), errors.EmptyLink, err, nil, errors.HideStackTrace)
 				verifyResult = vr.VerifierResult{
 					IsSuccess: false,
 					Name:      verifier.Name(),
 					Type:      verifier.Type(),
-					Message:   errors.ErrorCodeVerifyReferenceFailure.NewError(errors.Verifier, verifier.Name(), errors.EmptyLink, err, nil, errors.HideStackTrace).Error()}
+					Message:   newErr.GetErrDetail()}
 			}
+			verifyResult.Subject = subjectRef.String()
 
 			if len(verifier.GetNestedReferences()) > 0 {
 				executor.addNestedVerifierResult(ctx, referenceDesc, subjectRef, &verifyResult)

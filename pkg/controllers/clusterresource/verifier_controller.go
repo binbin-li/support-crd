@@ -70,7 +70,7 @@ func (r *VerifierReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if err := verifierAddOrReplace(verifier.Spec, resource); err != nil {
-		verifierLogger.Error(err, "unable to create verifier from verifier crd")
+		verifierLogger.Errorf("unable to create verifier from verifier crd, err: %v", err)
 		writeVerifierStatus(ctx, r, &verifier, verifierLogger, false, err.Error())
 		return ctrl.Result{}, err
 	}
