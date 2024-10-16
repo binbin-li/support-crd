@@ -53,6 +53,7 @@ jobs:
           scan-ref: '.'
           ignore-unfixed: true
           scanners: 'vuln'
+          version: 0.46.0
 
       - name: Build docker images
         run: |
@@ -65,6 +66,7 @@ jobs:
           scan-type: 'image'
           image-ref: 'localbuild:test'
           ignore-unfixed: true
+          version: 0.46.0
 
       - name: Run Trivy vulnerability scanner on localbuildcrd:test
         uses: aquasecurity/trivy-action@5681af892cd0f4997658e2bacc62bd0a894cf564 # 0.27.0
@@ -72,6 +74,7 @@ jobs:
           scan-type: 'image'
           image-ref: 'localbuildcrd:test'
           ignore-unfixed: true
+          version: 0.46.0
 
       - name: Run Trivy vulnerability scanner on localbuild:test and exit on HIGH severity
         uses: aquasecurity/trivy-action@5681af892cd0f4997658e2bacc62bd0a894cf564 # 0.27.0
@@ -81,6 +84,7 @@ jobs:
           ignore-unfixed: true
           severity: 'HIGH,CRITICAL'
           exit-code: '1'
+          version: 0.46.0
 
       - name: Run Trivy vulnerability scanner on localbuildcrd:test and exit on HIGH severity
         uses: aquasecurity/trivy-action@5681af892cd0f4997658e2bacc62bd0a894cf564 # 0.27.0
@@ -90,3 +94,4 @@ jobs:
           ignore-unfixed: true
           severity: 'HIGH,CRITICAL'
           exit-code: '1'
+          version: 0.46.0
