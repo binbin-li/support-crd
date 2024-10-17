@@ -37,8 +37,6 @@ jobs:
     name: "[Trivy] Scan for vulnerabilities"
     runs-on: ubuntu-22.04
     timeout-minutes: 15
-    env:
-      TRIVY_VERSION: v0.49.1
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
@@ -52,7 +50,6 @@ jobs:
         uses: aquasecurity/setup-trivy@eadb05c36f891dc855bba00f67174a1e61528cd4 # v0.2.1
         with:
           cache: true
-          version: ${{ env.TRIVY_VERSION }}
 
       - name: Run trivy on git repository
         uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # 0.28.0
@@ -61,7 +58,6 @@ jobs:
           scan-ref: '.'
           ignore-unfixed: true
           scanners: 'vuln'
-          version: ${{ env.TRIVY_VERSION }}
 
       - name: Build docker images
         run: |
@@ -74,7 +70,6 @@ jobs:
           scan-type: 'image'
           image-ref: 'localbuild:test'
           ignore-unfixed: true
-          version: ${{ env.TRIVY_VERSION }}
 
       - name: Run Trivy vulnerability scanner on localbuildcrd:test
         uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # 0.28.0
@@ -82,7 +77,6 @@ jobs:
           scan-type: 'image'
           image-ref: 'localbuildcrd:test'
           ignore-unfixed: true
-          version: ${{ env.TRIVY_VERSION }}
 
       - name: Run Trivy vulnerability scanner on localbuild:test and exit on HIGH severity
         uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # 0.28.0
@@ -92,7 +86,6 @@ jobs:
           ignore-unfixed: true
           severity: 'HIGH,CRITICAL'
           exit-code: '1'
-          version: ${{ env.TRIVY_VERSION }}
 
       - name: Run Trivy vulnerability scanner on localbuildcrd:test and exit on HIGH severity
         uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # 0.28.0
@@ -102,4 +95,3 @@ jobs:
           ignore-unfixed: true
           severity: 'HIGH,CRITICAL'
           exit-code: '1'
-          version: ${{ env.TRIVY_VERSION }}
