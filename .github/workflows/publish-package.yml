@@ -39,6 +39,9 @@ jobs:
       - name: Get tag
         run: |
           echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+      - name: Print TAG
+        run: |
+          echo "TAG: $TAG"
       - name: docker login
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
