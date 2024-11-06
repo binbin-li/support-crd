@@ -33,9 +33,13 @@ jobs:
           check-latest: true
       - uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
 
+  restore_trivy_cache:
+    uses: ./.github/workflows/restore-trivy-cache.yml
+
   scan_vulnerabilities:
     name: "[Trivy] Scan for vulnerabilities"
     runs-on: ubuntu-22.04
+    needs: ["restore_trivy_cache"]
     timeout-minutes: 15
     env:
       TRIVY_VERSION: 0.49.1
@@ -54,16 +58,6 @@ jobs:
           wget https://github.com/aquasecurity/trivy/releases/download/v${{ env.TRIVY_VERSION }}/trivy_${{ env.TRIVY_VERSION }}_Linux-64bit.tar.gz
           tar zxvf trivy_${{ env.TRIVY_VERSION }}_Linux-64bit.tar.gz
           echo "$(pwd)" >> $GITHUB_PATH
-      
-      - name: Download vulnerability database
-        uses: nick-fields/retry@7152eba30c6575329ac0576536151aca5a72780e # v3.0.0
-        with:
-          max_attempts: 3
-          retry_on: error
-          timeout_seconds: 30
-          retry_wait_seconds: 5
-          command: |
-            trivy image --download-db-only
 
       - name: Run trivy on git repository
         run: |
