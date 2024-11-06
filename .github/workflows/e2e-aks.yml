@@ -51,7 +51,6 @@ jobs:
           az account get-access-token --scope https://vault.azure.net/.default --output none
           # Container Registry:
           az account get-access-token --scope https://containerregistry.azure.net/.default --output none
-
       - name: Restore Trivy cache
         uses: ./.github/actions/restore_trivy_cache
 
