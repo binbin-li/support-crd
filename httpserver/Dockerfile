@@ -34,7 +34,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN go build -ldflags "${LDFLAGS}" -o /app/out/ /app/cmd/ratify
+RUN go build -ldflags "${LDFLAGS}" -o /app/out/ratifymain /app/server/main.go
 RUN mkdir /app/out/plugins
 RUN if [ "$build_sbom" = "true" ]; then go build -o /app/out/plugins/ /app/plugins/verifier/sbom; fi
 RUN if [ "$build_licensechecker" = "true" ]; then go build -o /app/out/plugins/ /app/plugins/verifier/licensechecker; fi
@@ -48,7 +48,7 @@ ARG RATIFY_FOLDER=$HOME/.ratify/
 
 WORKDIR /
 
-COPY --from=builder /app/out/ratify /app/
+COPY --from=builder /app/out/ratifymain /app/
 COPY --from=builder --chown=65532:65532 /app/out/plugins ${RATIFY_FOLDER}/plugins
 COPY --from=builder /app/config/config.json ${RATIFY_FOLDER}
 
@@ -59,5 +59,5 @@ EXPOSE 8888
 
 USER 65532:65532
 
-ENTRYPOINT ["/app/ratify", "serve", "--http", ":6001"]
+ENTRYPOINT ["/app/ratifymain", "serve", "--http", ":6001"]
 
