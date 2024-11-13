@@ -58,12 +58,11 @@ spec:
             seccompProfile:
               type: RuntimeDefault
           command:
-            - "/app/ratify"
+            - "/app/ratifymain"
           args:
-            - "serve"
             - "--http"
             - ":6001"
-            - "-c"
+            - "--config"
             - "/usr/local/ratify/config.json"
             - "--enable-crd-manager"
             - --cert-dir=/usr/local/tls

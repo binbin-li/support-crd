@@ -29,13 +29,13 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	"github.com/open-policy-agent/cert-controller/pkg/rotator"
 	"github.com/ratify-project/ratify/config"
-	"github.com/ratify-project/ratify/httpserver"
 	"github.com/ratify-project/ratify/pkg/featureflag"
 	_ "github.com/ratify-project/ratify/pkg/policyprovider/configpolicy" // register config policy provider
 	_ "github.com/ratify-project/ratify/pkg/policyprovider/regopolicy"   // register rego policy provider
 	_ "github.com/ratify-project/ratify/pkg/referrerstore/oras"          // register ORAS referrer store
 	"github.com/ratify-project/ratify/pkg/utils"
 	_ "github.com/ratify-project/ratify/pkg/verifier/notation" // register notation verifier
+	"github.com/ratify-project/ratify/server/httpserver"
 	"github.com/sirupsen/logrus"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // import additional authentication methods
 
