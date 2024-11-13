@@ -564,7 +564,7 @@ e2e-deploy-ratify: e2e-notation-setup e2e-notation-leaf-cert-setup e2e-cosign-se
 
 e2e-build-local-ratify-base-image:
 	docker build --progress=plain --no-cache \
-		-f ./httpserver/Dockerfile \
+		-f ./Dockerfile \
 		-t baselocalbuild:test .
 	kind load docker-image --name kind baselocalbuild:test
 
@@ -574,7 +574,7 @@ e2e-build-local-ratify-image:
 	--build-arg build_licensechecker=true \
 	--build-arg build_schemavalidator=true \
 	--build-arg build_vulnerabilityreport=true \
-	-f ./httpserver/Dockerfile \
+	-f ./Dockerfile \
 	-t localbuild:test .
 
 load-local-ratify-image:
