@@ -23,8 +23,8 @@ import (
 	"slices"
 
 	re "github.com/ratify-project/ratify/errors"
+	"github.com/ratify-project/ratify/internal/utils"
 	"github.com/ratify-project/ratify/pkg/keymanagementprovider"
-	"github.com/ratify-project/ratify/utils"
 	"github.com/sigstore/cosign/v2/cmd/cosign/cli/fulcio"
 	"github.com/sigstore/cosign/v2/cmd/cosign/cli/rekor"
 	"github.com/sigstore/cosign/v2/pkg/cosign"

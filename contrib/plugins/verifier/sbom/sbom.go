@@ -22,11 +22,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/ratify-project/ratify/contrib/plugins/verifier/sbom/utils"
 	"github.com/ratify-project/ratify/errors"
 	"github.com/ratify-project/ratify/pkg/common"
 	"github.com/ratify-project/ratify/pkg/ocispecs"
 	"github.com/ratify-project/ratify/pkg/referrerstore"
-	"github.com/ratify-project/ratify/plugins/verifier/sbom/utils"
 
 	// This import is required to utilize the oras built-in referrer store
 	re "github.com/ratify-project/ratify/errors"

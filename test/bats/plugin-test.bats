@@ -68,10 +68,10 @@ RATIFY_NAMESPACE=gatekeeper-system
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete verifiers.config.ratify.deislabs.io/verifier-license-checker --namespace default --ignore-not-found=true'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
     run kubectl apply -f ./config/samples/clustered/verifier/config_v1beta1_verifier_partial_licensechecker.yaml
@@ -93,10 +93,10 @@ RATIFY_NAMESPACE=gatekeeper-system
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod sbom2 --namespace default --force --ignore-not-found=true'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
 
@@ -130,10 +130,10 @@ RATIFY_NAMESPACE=gatekeeper-system
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod schemavalidator2 --namespace default --force --ignore-not-found=true'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
 
@@ -158,10 +158,10 @@ RATIFY_NAMESPACE=gatekeeper-system
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod vulnerabilityreport2 --namespace default --force --ignore-not-found=true'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
 
@@ -186,10 +186,10 @@ RATIFY_NAMESPACE=gatekeeper-system
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod all-in-one --namespace default --force --ignore-not-found=true'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
 
@@ -226,10 +226,10 @@ RATIFY_NAMESPACE=gatekeeper-system
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl apply -f clusterpolicy.yaml'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
 

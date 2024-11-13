@@ -27,13 +27,13 @@ import (
 	"github.com/ratify-project/ratify/errors"
 	ctxUtils "github.com/ratify-project/ratify/internal/context"
 	"github.com/ratify-project/ratify/internal/logger"
+	"github.com/ratify-project/ratify/internal/utils"
 	"github.com/ratify-project/ratify/pkg/cache"
 	"github.com/ratify-project/ratify/pkg/executor"
 	"github.com/ratify-project/ratify/pkg/executor/types"
 	"github.com/ratify-project/ratify/pkg/metrics"
 	"github.com/ratify-project/ratify/pkg/referrerstore"
 	pkgUtils "github.com/ratify-project/ratify/pkg/utils"
-	"github.com/ratify-project/ratify/utils"
 
 	"github.com/open-policy-agent/frameworks/constraint/pkg/externaldata"
 )
