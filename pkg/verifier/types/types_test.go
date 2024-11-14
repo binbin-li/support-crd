@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ratify-project/ratify/errors"
+	"github.com/ratify-project/ratify/internal/errors"
 )
 
 const (

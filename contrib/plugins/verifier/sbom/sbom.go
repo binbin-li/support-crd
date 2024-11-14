@@ -23,13 +23,13 @@ import (
 	"strings"
 
 	"github.com/ratify-project/ratify/contrib/plugins/verifier/sbom/utils"
-	"github.com/ratify-project/ratify/errors"
+	"github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/common"
 	"github.com/ratify-project/ratify/pkg/ocispecs"
 	"github.com/ratify-project/ratify/pkg/referrerstore"
 
 	// This import is required to utilize the oras built-in referrer store
-	re "github.com/ratify-project/ratify/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 	_ "github.com/ratify-project/ratify/pkg/referrerstore/oras"
 	"github.com/ratify-project/ratify/pkg/verifier"
 	"github.com/ratify-project/ratify/pkg/verifier/plugin/skel"

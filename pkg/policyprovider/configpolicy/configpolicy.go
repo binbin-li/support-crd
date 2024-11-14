@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	re "github.com/ratify-project/ratify/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/common"
 	"github.com/ratify-project/ratify/pkg/executor/types"
 	"github.com/ratify-project/ratify/pkg/ocispecs"

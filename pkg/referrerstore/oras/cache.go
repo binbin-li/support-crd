@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ratify-project/ratify/errors"
+	"github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/internal/logger"
 	"github.com/ratify-project/ratify/pkg/cache"
 	"github.com/ratify-project/ratify/pkg/common"

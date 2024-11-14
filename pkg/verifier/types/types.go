@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/ratify-project/ratify/errors"
+	"github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/verifier"
 )
 

@@ -28,7 +28,7 @@ import (
 	"testing"
 	"time"
 
-	ratifyerrors "github.com/ratify-project/ratify/errors"
+	ratifyerrors "github.com/ratify-project/ratify/internal/errors"
 	exconfig "github.com/ratify-project/ratify/pkg/executor/config"
 	"github.com/ratify-project/ratify/pkg/executor/core"
 	"github.com/ratify-project/ratify/pkg/ocispecs"

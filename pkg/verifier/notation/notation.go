@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	ratifyconfig "github.com/ratify-project/ratify/config"
-	re "github.com/ratify-project/ratify/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/internal/logger"
 	"github.com/ratify-project/ratify/pkg/common"
 	"github.com/ratify-project/ratify/pkg/homedir"

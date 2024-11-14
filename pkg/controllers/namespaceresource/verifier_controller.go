@@ -23,7 +23,7 @@ import (
 	"github.com/ratify-project/ratify/internal/constants"
 	"github.com/ratify-project/ratify/pkg/controllers"
 
-	re "github.com/ratify-project/ratify/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 	cutils "github.com/ratify-project/ratify/pkg/controllers/utils"
 	"github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

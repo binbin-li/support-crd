@@ -22,8 +22,8 @@ import (
 	"testing"
 
 	configv1beta1 "github.com/ratify-project/ratify/api/v1beta1"
-	re "github.com/ratify-project/ratify/errors"
 	"github.com/ratify-project/ratify/internal/constants"
+	re "github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/controllers"
 	rs "github.com/ratify-project/ratify/pkg/customresources/referrerstores"
 	"github.com/ratify-project/ratify/pkg/utils"

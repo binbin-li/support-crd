@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	configv1beta1 "github.com/ratify-project/ratify/api/v1beta1"
-	re "github.com/ratify-project/ratify/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 	vc "github.com/ratify-project/ratify/pkg/verifier/config"
 	vf "github.com/ratify-project/ratify/pkg/verifier/factory"
 	"github.com/ratify-project/ratify/pkg/verifier/types"

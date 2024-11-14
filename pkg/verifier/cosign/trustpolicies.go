@@ -21,7 +21,7 @@ import (
 	"slices"
 	"strings"
 
-	re "github.com/ratify-project/ratify/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 )
 
 type TrustPolicies struct {

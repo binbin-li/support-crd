@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	oci "github.com/opencontainers/image-spec/specs-go/v1"
-	re "github.com/ratify-project/ratify/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/common"
 	"github.com/ratify-project/ratify/pkg/ocispecs"
 

@@ -15,7 +15,7 @@ limitations under the License.
 
 package verifier
 
-import "github.com/ratify-project/ratify/errors"
+import "github.com/ratify-project/ratify/internal/errors"
 
 // VerifierResult describes the result of verifying a reference manifest for a subject.
 // Note: This struct is used to represent the result of verification in v0.

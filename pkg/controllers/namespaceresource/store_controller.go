@@ -24,8 +24,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	configv1beta1 "github.com/ratify-project/ratify/api/v1beta1"
-	re "github.com/ratify-project/ratify/errors"
 	"github.com/ratify-project/ratify/internal/constants"
+	re "github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/controllers"
 	"github.com/ratify-project/ratify/pkg/controllers/utils"
 	"github.com/sirupsen/logrus"

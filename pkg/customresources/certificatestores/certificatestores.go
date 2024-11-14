@@ -21,9 +21,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ratify-project/ratify/errors"
 	"github.com/ratify-project/ratify/internal/constants"
 	ctxUtils "github.com/ratify-project/ratify/internal/context"
+	"github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/utils"
 	vu "github.com/ratify-project/ratify/pkg/verifier/utils"
 )

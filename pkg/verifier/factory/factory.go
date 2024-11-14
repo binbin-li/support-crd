@@ -21,7 +21,7 @@ import (
 	"path"
 	"strings"
 
-	re "github.com/ratify-project/ratify/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 	pluginCommon "github.com/ratify-project/ratify/pkg/common/plugin"
 	"github.com/ratify-project/ratify/pkg/featureflag"
 	"github.com/ratify-project/ratify/pkg/verifier"

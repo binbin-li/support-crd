@@ -21,8 +21,8 @@ import (
 	"fmt"
 
 	"github.com/ratify-project/ratify/contrib/plugins/verifier/schemavalidator/schemavalidation"
-	"github.com/ratify-project/ratify/errors"
-	re "github.com/ratify-project/ratify/errors"
+	"github.com/ratify-project/ratify/internal/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/common"
 	"github.com/ratify-project/ratify/pkg/ocispecs"
 	"github.com/ratify-project/ratify/pkg/referrerstore"

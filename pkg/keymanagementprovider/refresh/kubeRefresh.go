@@ -22,7 +22,7 @@ import (
 	"maps"
 	"time"
 
-	re "github.com/ratify-project/ratify/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 	kmp "github.com/ratify-project/ratify/pkg/keymanagementprovider"
 	"github.com/sirupsen/logrus"
 	ctrl "sigs.k8s.io/controller-runtime"

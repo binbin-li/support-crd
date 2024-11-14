@@ -25,7 +25,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	azcontainerregistry "github.com/Azure/azure-sdk-for-go/sdk/containers/azcontainerregistry"
-	ratifyerrors "github.com/ratify-project/ratify/errors"
+	ratifyerrors "github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/common/oras/authprovider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

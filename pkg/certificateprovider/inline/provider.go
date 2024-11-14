@@ -19,7 +19,7 @@ import (
 	"context"
 	"crypto/x509"
 
-	"github.com/ratify-project/ratify/errors"
+	"github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/certificateprovider"
 )
 

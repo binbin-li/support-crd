@@ -28,7 +28,7 @@ import (
 	test "github.com/ratify-project/ratify/pkg/utils"
 	"github.com/sirupsen/logrus"
 
-	re "github.com/ratify-project/ratify/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 	kmp "github.com/ratify-project/ratify/pkg/keymanagementprovider"
 	"github.com/ratify-project/ratify/pkg/keymanagementprovider/refresh"
 

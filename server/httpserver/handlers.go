@@ -24,8 +24,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ratify-project/ratify/errors"
 	ctxUtils "github.com/ratify-project/ratify/internal/context"
+	"github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/internal/logger"
 	"github.com/ratify-project/ratify/internal/utils"
 	"github.com/ratify-project/ratify/pkg/cache"

@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	"github.com/notaryproject/notation-go/verifier/truststore"
-	re "github.com/ratify-project/ratify/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/controllers"
 )
 

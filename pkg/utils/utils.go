@@ -24,7 +24,7 @@ import (
 
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
-	"github.com/ratify-project/ratify/errors"
+	"github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/common"
 )
 

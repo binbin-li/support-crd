@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	re "github.com/ratify-project/ratify/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/policyprovider"
 	"github.com/ratify-project/ratify/pkg/policyprovider/config"
 	"github.com/ratify-project/ratify/pkg/verifier/types"

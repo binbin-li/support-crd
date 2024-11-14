@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	ratifyerrors "github.com/ratify-project/ratify/errors"
+	ratifyerrors "github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/common/oras/authprovider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"

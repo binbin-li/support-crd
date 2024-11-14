@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	re "github.com/ratify-project/ratify/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/internal/logger"
 	"github.com/ratify-project/ratify/pkg/certificateprovider"
 	"github.com/ratify-project/ratify/pkg/certificateprovider/azurekeyvault/types"

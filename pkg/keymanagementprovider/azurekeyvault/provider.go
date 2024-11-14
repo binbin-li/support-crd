@@ -31,7 +31,7 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v3"
-	re "github.com/ratify-project/ratify/errors"
+	re "github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/internal/logger"
 	"github.com/ratify-project/ratify/internal/version"
 	"github.com/ratify-project/ratify/pkg/keymanagementprovider"

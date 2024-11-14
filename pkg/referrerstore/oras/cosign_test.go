@@ -25,7 +25,7 @@ import (
 
 	"github.com/opencontainers/go-digest"
 	oci "github.com/opencontainers/image-spec/specs-go/v1"
-	ratifyerrors "github.com/ratify-project/ratify/errors"
+	ratifyerrors "github.com/ratify-project/ratify/internal/errors"
 	"github.com/ratify-project/ratify/pkg/cache"
 	_ "github.com/ratify-project/ratify/pkg/cache/ristretto"
 	"github.com/ratify-project/ratify/pkg/common"
