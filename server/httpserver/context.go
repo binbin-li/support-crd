@@ -20,7 +20,7 @@ import (
 	"net/http"
 
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/ratify-project/ratify/utils"
+	"github.com/ratify-project/ratify/internal/utils"
 	"github.com/sirupsen/logrus"
 )
 

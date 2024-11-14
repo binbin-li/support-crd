@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ratify-project/ratify/plugins/verifier/licensechecker/utils"
+	"github.com/ratify-project/ratify/contrib/plugins/verifier/licensechecker/utils"
 
 	"github.com/ratify-project/ratify/pkg/common"
 	"github.com/ratify-project/ratify/pkg/ocispecs"

@@ -54,9 +54,9 @@ SLEEP_TIME=1
     }
 
     # configure the default template/constraint
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
 
     # verify that the image can be run with a root cert, root verification cert should have been configured on deployment
@@ -87,10 +87,10 @@ SLEEP_TIME=1
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod demo1 --namespace default --force --ignore-not-found=true'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
     wait_for_process 20 10 'kubectl run demo --namespace default --image=${TEST_REGISTRY}/notation:signed'
@@ -106,10 +106,10 @@ SLEEP_TIME=1
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod cosign-demo2 --namespace default --force --ignore-not-found=true'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
     run kubectl apply -f ./test/bats/tests/config/config_v1beta1_verifier_cosign_akv.yaml
@@ -130,10 +130,10 @@ SLEEP_TIME=1
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete verifiers.config.ratify.deislabs.io/verifier-license-checker --ignore-not-found=true'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
 
@@ -156,10 +156,10 @@ SLEEP_TIME=1
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod sbom2 --namespace default --force --ignore-not-found=true'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
 
@@ -186,10 +186,10 @@ SLEEP_TIME=1
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod schemavalidator2 --namespace default --force --ignore-not-found=true'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
 
@@ -216,10 +216,10 @@ SLEEP_TIME=1
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod all-in-one --namespace default --force --ignore-not-found=true'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
 
@@ -262,23 +262,23 @@ SLEEP_TIME=1
 
 @test "configmap update test" {
     skip "Skipping test for now as we are no longer watching for configfile update in a K8s environment.This test ensures we are watching config file updates in a non-kub scenario"
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
     wait_for_process 20 10 'kubectl run demo2 --image=${TEST_REGISTRY}/notation:signed'
     assert_success
 
     run kubectl get configmaps ratify-configuration --namespace=gatekeeper-system -o yaml >currentConfig.yaml
-    run kubectl delete -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl delete -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
 
     wait_for_process ${WAIT_TIME} ${SLEEP_TIME} "kubectl replace --namespace=gatekeeper-system -f ${BATS_TESTS_DIR}/configmap/invalidconfigmap.yaml"
     echo "Waiting for 150 second for configuration update"
     sleep 150
 
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     run kubectl run demo3 --image=${TEST_REGISTRY}/notation:signed
     echo "Current time after validate : $(date +"%T")"
@@ -307,10 +307,10 @@ SLEEP_TIME=1
         echo "cleaning up"
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod mutate-demo --namespace default --ignore-not-found=true'
     }
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
     wait_for_process 20 10 'kubectl run mutate-demo --namespace default --image=${TEST_REGISTRY}/notation:signed'

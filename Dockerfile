@@ -36,10 +36,10 @@ COPY . .
 
 RUN go build -ldflags "${LDFLAGS}" -o /app/out/ratifymain /app/server/main.go
 RUN mkdir /app/out/plugins
-RUN if [ "$build_sbom" = "true" ]; then go build -o /app/out/plugins/ /app/plugins/verifier/sbom; fi
-RUN if [ "$build_licensechecker" = "true" ]; then go build -o /app/out/plugins/ /app/plugins/verifier/licensechecker; fi
-RUN if [ "$build_schemavalidator" = "true" ]; then go build -o /app/out/plugins/ /app/plugins/verifier/schemavalidator; fi
-RUN if [ "$build_vulnerabilityreport" = "true" ]; then go build -o /app/out/plugins/ /app/plugins/verifier/vulnerabilityreport; fi
+RUN if [ "$build_sbom" = "true" ]; then go build -o /app/out/plugins/ /app/contrib/plugins/verifier/sbom; fi
+RUN if [ "$build_licensechecker" = "true" ]; then go build -o /app/out/plugins/ /app/contrib/plugins/verifier/licensechecker; fi
+RUN if [ "$build_schemavalidator" = "true" ]; then go build -o /app/out/plugins/ /app/contrib/plugins/verifier/schemavalidator; fi
+RUN if [ "$build_vulnerabilityreport" = "true" ]; then go build -o /app/out/plugins/ /app/contrib/plugins/verifier/vulnerabilityreport; fi
 
 FROM gcr.io/distroless/static:nonroot@sha256:3a03fc0826340c7deb82d4755ca391bef5adcedb8892e58412e1a6008199fa91
 LABEL org.opencontainers.image.source https://github.com/ratify-project/ratify

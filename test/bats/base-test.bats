@@ -28,10 +28,10 @@ RATIFY_NAMESPACE=gatekeeper-system
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod initcontainer-pod --namespace default --force --ignore-not-found=true'
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod initcontainer-pod1 --namespace default --force --ignore-not-found=true'
     }
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
     # validate key management provider status property shows success
@@ -79,10 +79,10 @@ RATIFY_NAMESPACE=gatekeeper-system
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod demo --namespace default --force --ignore-not-found=true'
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod demo1 --namespace default --force --ignore-not-found=true'
     }
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
 
@@ -110,8 +110,8 @@ RATIFY_NAMESPACE=gatekeeper-system
     assert_success
 
     # add the tsaroot certificate as an inline key management provider
-    cat ./test/bats/tests/config/config_v1beta1_keymanagementprovider_inline.yaml >> tsakmprovider.yaml
-    cat ./test/bats/tests/certificates/tsarootca.cer | sed 's/^/      /g' >> tsakmprovider.yaml
+    cat ./test/bats/tests/config/config_v1beta1_keymanagementprovider_inline.yaml >>tsakmprovider.yaml
+    cat ./test/bats/tests/certificates/tsarootca.cer | sed 's/^/      /g' >>tsakmprovider.yaml
     run kubectl apply -f tsakmprovider.yaml --namespace ${RATIFY_NAMESPACE}
     assert_success
 
@@ -143,10 +143,10 @@ RATIFY_NAMESPACE=gatekeeper-system
         assert_success
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
 
@@ -185,10 +185,10 @@ RATIFY_NAMESPACE=gatekeeper-system
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod cosign-demo-key --namespace default --force --ignore-not-found=true'
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod cosign-demo-unsigned --namespace default --force --ignore-not-found=true'
     }
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
 
@@ -210,10 +210,10 @@ RATIFY_NAMESPACE=gatekeeper-system
     run kubectl replace -f ./config/samples/clustered/verifier/config_v1beta1_verifier_cosign_legacy.yaml
     sleep 5
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
 
@@ -302,23 +302,23 @@ RATIFY_NAMESPACE=gatekeeper-system
 
 @test "configmap update test" {
     skip "Skipping test for now as we are no longer watching for configfile update in a K8s environment. This test ensures we are watching config file updates in a non-kub scenario"
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
     run kubectl run demo2 --image=registry:5000/notation:signed
     assert_success
 
     run kubectl get configmaps ratify-configuration --namespace=${RATIFY_NAMESPACE} -o yaml >currentConfig.yaml
-    run kubectl delete -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl delete -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
 
     wait_for_process ${WAIT_TIME} ${SLEEP_TIME} "kubectl replace --namespace=${RATIFY_NAMESPACE} -f ${BATS_TESTS_DIR}/configmap/invalidconfigmap.yaml"
     echo "Waiting for 150 second for configuration update"
     sleep 150
 
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     run kubectl run demo3 --image=registry:5000/notation:signed
     echo "Current time after validate : $(date +"%T")"
@@ -333,10 +333,10 @@ RATIFY_NAMESPACE=gatekeeper-system
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod mutate-demo --namespace default --ignore-not-found=true'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
     run kubectl run mutate-demo --namespace default --image=registry:5000/notation:signed
@@ -360,9 +360,9 @@ RATIFY_NAMESPACE=gatekeeper-system
     run bash -c "kubectl get keymanagementproviders.config.ratify.deislabs.io/ratify-notation-inline-cert-0 -o yaml > kmprovider_staging.yaml"
     assert_success
     # configure the default template/constraint
-    run kubectl apply -f ./library/default/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/default/template.yaml
     assert_success
-    run kubectl apply -f ./library/default/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/default/samples/constraint.yaml
     assert_success
 
     # verify that the image cannot be run due to an invalid cert
@@ -398,9 +398,9 @@ RATIFY_NAMESPACE=gatekeeper-system
     }
 
     # configure the default template/constraint
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
 
     # verify that the image cannot be run due to an invalid cert
@@ -435,9 +435,9 @@ RATIFY_NAMESPACE=gatekeeper-system
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete certificatestores.config.ratify.deislabs.io/ratify-notation-inline-cert-0 --namespace ${RATIFY_NAMESPACE} --ignore-not-found=true'
     }
     # configure the default template/constraint
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
 
     # validate key management provider status property shows success
@@ -468,10 +468,10 @@ RATIFY_NAMESPACE=gatekeeper-system
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl replace -f ./config/samples/clustered/store/config_v1beta1_store_oras_http.yaml'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
     # apply store CRD with K8s secret auth provier enabled
@@ -495,9 +495,9 @@ RATIFY_NAMESPACE=gatekeeper-system
     }
 
     # configure the default template/constraint
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
 
     # add the root certificate as an inline key management provider
@@ -546,10 +546,10 @@ RATIFY_NAMESPACE=gatekeeper-system
     sleep 100
 
     # verify that the verification succeeds
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
     assert_success
     sleep 5
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     assert_success
     sleep 5
     run kubectl run demo --namespace default --image=registry:5000/notation:signed
@@ -575,8 +575,8 @@ RATIFY_NAMESPACE=gatekeeper-system
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete pod cosign-demo-unsigned --namespace default --force --ignore-not-found=true'
     }
 
-    run kubectl apply -f ./library/multi-tenancy-validation/template.yaml
-    run kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
+    run kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
     sleep 3
 
     # apply namespaced policy and delete cluster-wide policy.

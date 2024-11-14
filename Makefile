@@ -82,12 +82,12 @@ build-cli: fmt vet
 
 .PHONY: build-plugins
 build-plugins:
-	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/licensechecker/... -o ./bin/plugins/ ./plugins/verifier/licensechecker
-	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/sample/... -o ./bin/plugins/ ./plugins/verifier/sample
+	go build -cover -coverpkg=github.com/ratify-project/ratify/contrib/plugins/verifier/licensechecker/... -o ./bin/plugins/ ./plugins/verifier/licensechecker
+	go build -cover -coverpkg=github.com/ratify-project/ratify/contrib/plugins/verifier/sample/... -o ./bin/plugins/ ./plugins/verifier/sample
 	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/referrerstore/sample/... -o ./bin/plugins/referrerstore/ ./plugins/referrerstore/sample
-	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/sbom/... -o ./bin/plugins/ ./plugins/verifier/sbom
-	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/schemavalidator/... -o ./bin/plugins/ ./plugins/verifier/schemavalidator
-	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/vulnerabilityreport/... -o ./bin/plugins/ ./plugins/verifier/vulnerabilityreport
+	go build -cover -coverpkg=github.com/ratify-project/ratify/contrib/plugins/verifier/sbom/... -o ./bin/plugins/ ./plugins/verifier/sbom
+	go build -cover -coverpkg=github.com/ratify-project/ratify/contrib/plugins/verifier/schemavalidator/... -o ./bin/plugins/ ./plugins/verifier/schemavalidator
+	go build -cover -coverpkg=github.com/ratify-project/ratify/contrib/plugins/verifier/vulnerabilityreport/... -o ./bin/plugins/ ./plugins/verifier/vulnerabilityreport
 
 .PHONY: install
 install:
@@ -129,13 +129,13 @@ delete-ratify:
 
 .PHONY: deploy-demo-constraints
 deploy-demo-constraints:
-	kubectl apply -f ./library/multi-tenancy-validation/template.yaml
-	kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
+	kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
+	kubectl apply -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
 
 .PHONY: delete-demo-constraints
 delete-demo-constraints:
-	kubectl delete -f ./library/multi-tenancy-validation/template.yaml
-	kubectl delete -f ./library/multi-tenancy-validation/samples/constraint.yaml
+	kubectl delete -f ./contrib/samples/constraints/multi-tenancy-validation/template.yaml
+	kubectl delete -f ./contrib/samples/constraints/multi-tenancy-validation/samples/constraint.yaml
 
 .PHONY: deploy-rego-policy
 deploy-rego-policy:
