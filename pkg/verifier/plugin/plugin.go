@@ -148,7 +148,7 @@ func (vp *VerifierPlugin) verifyReference(
 		return nil, re.ErrorCodeVerifyPluginFailure.NewError(re.Verifier, vp.name, re.EmptyLink, err, nil, re.HideStackTrace)
 	}
 
-	result, err := types.GetVerifierResult(stdoutBytes)
+	result, err := verifier.DecodeVerifierResult(stdoutBytes)
 	if err != nil {
 		return nil, err
 	}

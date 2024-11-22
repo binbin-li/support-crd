@@ -285,7 +285,6 @@ func (v *cosignVerifier) verifyInternal(ctx context.Context, subjectReference co
 
 	if hasValidSignature {
 		return verifier.NewVerifierResult(
-			"",
 			v.name,
 			v.verifierType,
 			"Verification success. Valid signatures found. Please refer to extensions field for verifications performed.",
@@ -398,7 +397,6 @@ func (v *cosignVerifier) verifyLegacy(ctx context.Context, subjectReference comm
 
 	if len(signatures) > 0 {
 		return verifier.NewVerifierResult(
-			"",
 			v.name,
 			v.verifierType,
 			"Verification success. Valid signatures found",
@@ -487,7 +485,6 @@ func staticLayerOpts(desc imgspec.Descriptor) ([]static.Option, error) {
 func errorToVerifyResult(name string, verifierType string, err error) verifier.VerifierResult {
 	verifierErr := re.ErrorCodeVerifyReferenceFailure.WithDetail("Failed to validate the Cosign signature").WithError(err)
 	return verifier.NewVerifierResult(
-		"",
 		name,
 		verifierType,
 		"",

@@ -68,7 +68,7 @@ func TestNewVerifierResult(t *testing.T) {
 				err = nil
 			}
 
-			result := NewVerifierResult("", "", "", tt.message, false, err, nil)
+			result := NewVerifierResult("", "", tt.message, false, err, nil)
 			if result.Message != tt.expectedMsg {
 				t.Errorf("expected message %s, got %s", tt.expectedMsg, result.Message)
 			}

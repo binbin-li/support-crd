@@ -422,11 +422,11 @@ func TestErrorToVerifyResult(t *testing.T) {
 	if verifierResult.IsSuccess {
 		t.Errorf("errorToVerifyResult() = %v, want %v", verifierResult.IsSuccess, false)
 	}
-	if verifierResult.Name != "test" {
-		t.Errorf("errorToVerifyResult() = %v, want %v", verifierResult.Name, "test")
+	if verifierResult.VerifierName != "test" {
+		t.Errorf("errorToVerifyResult() = %v, want %v", verifierResult.VerifierName, "test")
 	}
-	if verifierResult.Type != "cosign" {
-		t.Errorf("errorToVerifyResult() = %v, want %v", verifierResult.Type, "cosign")
+	if verifierResult.VerifierType != "cosign" {
+		t.Errorf("errorToVerifyResult() = %v, want %v", verifierResult.VerifierType, "cosign")
 	}
 	if verifierResult.Message != "Failed to validate the Cosign signature" {
 		t.Errorf("errorToVerifyResult() = %v, want %v", verifierResult.Message, "Failed to validate the Cosign signature")

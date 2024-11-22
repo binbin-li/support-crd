@@ -75,9 +75,9 @@ func VerifyReference(args *skel.CmdArgs, _ common.Reference, referenceDescriptor
 	}
 
 	return &verifier.VerifierResult{
-		Name:      input.Name,
-		Type:      verifierType,
-		IsSuccess: referenceDescriptor.Size > 0,
-		Message:   "Sample verification success",
+		VerifierName: input.Name,
+		VerifierType: verifierType,
+		IsSuccess:    referenceDescriptor.Size > 0,
+		Message:      "Sample verification success",
 	}, nil
 }

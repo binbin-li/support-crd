@@ -15,30 +15,26 @@ limitations under the License.
 
 package verifier
 
-import "github.com/ratify-project/ratify/errors"
+import (
+	"encoding/json"
+	"io"
 
-// VerifierResult describes the result of verifying a reference manifest for a subject.
-// Note: This struct is used to represent the result of verification in v0.
+	"github.com/ratify-project/ratify/errors"
+)
+
+// VerifierResult describes the verification result returned from the verifier plugin
 type VerifierResult struct { //nolint:revive // ignore linter to have unique type name
-	Subject   string `json:"subject,omitempty"`
-	IsSuccess bool   `json:"isSuccess"`
-	// Name will be deprecated in v2, tracking issue: https://github.com/ratify-project/ratify/issues/1707
-	Name         string `json:"name,omitempty"`
-	VerifierName string `json:"verifierName,omitempty"`
-	// Type will be deprecated in v2, tracking issue: https://github.com/ratify-project/ratify/issues/1707
-	Type            string           `json:"type,omitempty"`
-	VerifierType    string           `json:"verifierType,omitempty"`
-	ReferenceDigest string           `json:"referenceDigest,omitempty"`
-	ArtifactType    string           `json:"artifactType,omitempty"`
-	Message         string           `json:"message,omitempty"`
-	ErrorReason     string           `json:"errorReason,omitempty"`
-	Remediation     string           `json:"remediation,omitempty"`
-	Extensions      interface{}      `json:"extensions,omitempty"`
-	NestedResults   []VerifierResult `json:"nestedResults,omitempty"`
+	IsSuccess    bool        `json:"isSuccess"`
+	Message      string      `json:"message"`
+	ErrorReason  string      `json:"errorReason,omitempty"`
+	Remediation  string      `json:"remediation,omitempty"`
+	VerifierName string      `json:"verifierName,omitempty"`
+	VerifierType string      `json:"verifierType,omitempty"`
+	Extensions   interface{} `json:"extensions"`
 }
 
 // NewVerifierResult creates a new VerifierResult object with the given parameters.
-func NewVerifierResult(subject, verifierName, verifierType, message string, isSuccess bool, err *errors.Error, extensions interface{}) VerifierResult {
+func NewVerifierResult(verifierName, verifierType, message string, isSuccess bool, err *errors.Error, extensions interface{}) VerifierResult {
 	var errorReason, remediation string
 	if err != nil {
 		if err.GetDetail() != "" {
@@ -48,10 +44,7 @@ func NewVerifierResult(subject, verifierName, verifierType, message string, isSu
 		remediation = err.GetRemediation()
 	}
 	return VerifierResult{
-		Subject:      subject,
 		IsSuccess:    isSuccess,
-		Name:         verifierName,
-		Type:         verifierType,
 		VerifierName: verifierName,
 		VerifierType: verifierType,
 		Message:      message,
@@ -59,4 +52,24 @@ func NewVerifierResult(subject, verifierName, verifierType, message string, isSu
 		Remediation:  remediation,
 		Extensions:   extensions,
 	}
+}
+
+// WriteVerifyResultResult writes the given result as JSON data to the writer w
+func WriteVerifyResultResult(result *VerifierResult, w io.Writer) error {
+	return json.NewEncoder(w).Encode(result)
+}
+
+// DecodeVerifierResult encodes the given JSON data into verify result object
+func DecodeVerifierResult(result []byte) (*VerifierResult, error) {
+	vResult := VerifierResult{}
+	if err := json.Unmarshal(result, &vResult); err != nil {
+		return nil, err
+	}
+	return &VerifierResult{
+		IsSuccess:    vResult.IsSuccess,
+		Message:      vResult.Message,
+		VerifierName: vResult.VerifierName,
+		VerifierType: vResult.VerifierType,
+		Extensions:   vResult.Extensions,
+	}, nil
 }
