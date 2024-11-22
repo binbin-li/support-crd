@@ -74,7 +74,7 @@ func VerifyReference(args *skel.CmdArgs, subjectReference common.Reference, refe
 
 	if len(referenceManifest.Blobs) == 0 {
 		noBlobErr := errors.ErrorCodeVerifyPluginFailure.WithDetail(fmt.Sprintf("No blobs found for referrer %s@%s.", subjectReference.Path, referenceDescriptor.Digest.String()))
-		result := verifier.NewVerifierResult("", input.Name, verifierType, "", false, &noBlobErr, nil)
+		result := verifier.NewVerifierResult(input.Name, verifierType, "", false, &noBlobErr, nil)
 		return &result, nil
 	}
 
@@ -87,12 +87,12 @@ func VerifyReference(args *skel.CmdArgs, subjectReference common.Reference, refe
 		err = processMediaType(schemaMap, blobDesc.MediaType, refBlob)
 		if err != nil {
 			verifierErr := re.ErrorCodeVerifyPluginFailure.WithDetail(fmt.Sprintf("schema validation failed for digest:[%s], media type:[%s].", blobDesc.Digest, blobDesc.MediaType)).WithError(err)
-			result := verifier.NewVerifierResult("", input.Name, verifierType, "", false, &verifierErr, nil)
+			result := verifier.NewVerifierResult(input.Name, verifierType, "", false, &verifierErr, nil)
 			return &result, nil
 		}
 	}
 
-	result := verifier.NewVerifierResult("", input.Name, verifierType, "schema validation passed for configured media types", true, nil, nil)
+	result := verifier.NewVerifierResult(input.Name, verifierType, "schema validation passed for configured media types", true, nil, nil)
 	return &result, nil
 }
 

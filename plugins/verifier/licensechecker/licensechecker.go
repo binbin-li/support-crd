@@ -73,10 +73,10 @@ func VerifyReference(args *skel.CmdArgs, subjectReference common.Reference, desc
 
 	if len(referenceManifest.Blobs) == 0 {
 		return &verifier.VerifierResult{
-			Name:      input.Name,
-			Type:      verifierType,
-			IsSuccess: false,
-			Message:   fmt.Sprintf("License Check FAILED: no blobs found for referrer %s@%s", subjectReference.Path, descriptor.Digest.String()),
+			VerifierName: input.Name,
+			VerifierType: verifierType,
+			IsSuccess:    false,
+			Message:      fmt.Sprintf("License Check FAILED: no blobs found for referrer %s@%s", subjectReference.Path, descriptor.Digest.String()),
 		}, nil
 	}
 
@@ -96,18 +96,18 @@ func VerifyReference(args *skel.CmdArgs, subjectReference common.Reference, desc
 
 		if len(disallowedLicenses) > 0 {
 			return &verifier.VerifierResult{
-				Name:      input.Name,
-				Type:      verifierType,
-				IsSuccess: false,
-				Message:   fmt.Sprintf("License Check: FAILED. %s", disallowedLicenses),
+				VerifierName: input.Name,
+				VerifierType: verifierType,
+				IsSuccess:    false,
+				Message:      fmt.Sprintf("License Check: FAILED. %s", disallowedLicenses),
 			}, nil
 		}
 	}
 
 	return &verifier.VerifierResult{
-		Name:      input.Name,
-		Type:      verifierType,
-		IsSuccess: true,
-		Message:   "License Check: SUCCESS. All packages have allowed licenses",
+		VerifierName: input.Name,
+		VerifierType: verifierType,
+		IsSuccess:    true,
+		Message:      "License Check: SUCCESS. All packages have allowed licenses",
 	}, nil
 }

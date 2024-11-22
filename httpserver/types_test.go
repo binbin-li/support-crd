@@ -20,31 +20,23 @@ import (
 	"testing"
 
 	"github.com/ratify-project/ratify/pkg/executor/types"
-	pt "github.com/ratify-project/ratify/pkg/policyprovider/types"
 )
 
 func TestFromVerifyResult(t *testing.T) {
 	result := types.VerifyResult{}
 	testCases := []struct {
 		name            string
-		policyType      string
 		expectedVersion string
 	}{
 		{
 			name:            "Rego policy",
-			policyType:      pt.RegoPolicy,
 			expectedVersion: "1.1.0",
-		},
-		{
-			name:            "Config policy",
-			policyType:      pt.ConfigPolicy,
-			expectedVersion: "0.2.0",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if res := fromVerifyResult(context.Background(), result, tc.policyType); res.Version != tc.expectedVersion {
+			if res := fromVerifyResult(context.Background(), result); res.Version != tc.expectedVersion {
 				t.Fatalf("Expected version to be %s, got %s", tc.expectedVersion, res.Version)
 			}
 		})

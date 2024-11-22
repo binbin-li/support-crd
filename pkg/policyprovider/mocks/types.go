@@ -34,9 +34,8 @@ func (p *TestPolicyProvider) ContinueVerifyOnFailure(_ context.Context, _ common
 	return true
 }
 
-func (p *TestPolicyProvider) ErrorToVerifyResult(_ context.Context, subjectRefString string, _ error) types.VerifyResult {
+func (p *TestPolicyProvider) ErrorToVerifyResult(_ context.Context, _ string, _ error) types.VerifyResult {
 	errorReport := verifier.VerifierResult{
-		Subject:   subjectRefString,
 		IsSuccess: false,
 		Message:   "this a test",
 	}

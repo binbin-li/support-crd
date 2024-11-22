@@ -142,7 +142,7 @@ func (server *Server) verify(ctx context.Context, w http.ResponseWriter, r *http
 					}
 				}
 			}
-			verificationResponse := fromVerifyResult(ctx, result, server.GetExecutor(ctx).PolicyEnforcer.GetPolicyType(ctx))
+			verificationResponse := fromVerifyResult(ctx, result)
 			returnItem.Value = verificationResponse
 			if res, err := json.MarshalIndent(verificationResponse, "", "  "); err == nil {
 				logger.GetLogger(ctx, server.LogOption).Infof("verification response for subject %s: \n%s", resolvedSubjectReference, string(res))

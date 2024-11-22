@@ -109,7 +109,7 @@ func (pc *pcontext) pluginMainCore(_, version string, verifyReference VerifyRefe
 			return plugin.NewError(types.ErrPluginCmdFailure, fmt.Sprintf("plugin command %s failed", vp.VerifyCommand), err.Error())
 		}
 
-		err = types.WriteVerifyResultResult(result, pc.Stdout)
+		err = verifier.WriteVerifyResultResult(result, pc.Stdout)
 		if err != nil {
 			return plugin.NewError(types.ErrIOFailure, "failed to write plugin output", err.Error())
 		}

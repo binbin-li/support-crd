@@ -21,7 +21,6 @@ import (
 
 	"github.com/ratify-project/ratify/internal/logger"
 	"github.com/ratify-project/ratify/pkg/executor/types"
-	pt "github.com/ratify-project/ratify/pkg/policyprovider/types"
 )
 
 const (
@@ -41,11 +40,8 @@ type VerificationResponse struct {
 	VerifierReports []interface{} `json:"verifierReports,omitempty"`
 }
 
-func fromVerifyResult(ctx context.Context, res types.VerifyResult, policyType string) VerificationResponse {
-	version := ResultVersion0_2_0
-	if policyType == pt.RegoPolicy {
-		version = ResultVersion1_1_0
-	}
+func fromVerifyResult(ctx context.Context, res types.VerifyResult) VerificationResponse {
+	version := ResultVersion1_1_0
 	return VerificationResponse{
 		Version:         version,
 		IsSuccess:       res.IsSuccess,

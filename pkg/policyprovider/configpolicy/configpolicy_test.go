@@ -21,7 +21,7 @@ import (
 
 	oci "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/ratify-project/ratify/pkg/common"
-	vt "github.com/ratify-project/ratify/pkg/executor/types"
+	et "github.com/ratify-project/ratify/pkg/executor/types"
 	"github.com/ratify-project/ratify/pkg/ocispecs"
 	pc "github.com/ratify-project/ratify/pkg/policyprovider/config"
 	pf "github.com/ratify-project/ratify/pkg/policyprovider/factory"
@@ -60,7 +60,7 @@ func TestPolicyEnforcer_ContinueVerifyOnFailure(t *testing.T) {
 		Descriptor:   oci.Descriptor{},
 		ArtifactType: "application/vnd.cncf.notary.signature",
 	}
-	result := vt.VerifyResult{
+	result := et.VerifyResult{
 		IsSuccess:       false,
 		VerifierReports: nil,
 	}
@@ -90,12 +90,13 @@ func TestPolicyEnforcer_ContinueVerifyOnFailure(t *testing.T) {
 
 func TestPolicyEnforcer_OverallVerifyResult(t *testing.T) {
 	testcases := []struct {
+		name               string
 		configPolicyConfig map[string]interface{}
 		verifierReports    []interface{}
 		output             bool
 	}{
 		{
-			// no artifact policies or verifier reports
+			name: "no artifact policies and no referres",
 			configPolicyConfig: map[string]interface{}{
 				"name":                         "configPolicy",
 				"artifactVerificationPolicies": map[string]types.ArtifactTypeVerifyPolicy{},
@@ -104,42 +105,43 @@ func TestPolicyEnforcer_OverallVerifyResult(t *testing.T) {
 			output:          false,
 		},
 		{
-			// no artifact policies
+			name: "no artifact policies and no matching verifier reports",
 			configPolicyConfig: map[string]interface{}{
 				"name":                         "configPolicy",
 				"artifactVerificationPolicies": map[string]types.ArtifactTypeVerifyPolicy{},
 			},
 			verifierReports: []interface{}{
-				vr.VerifierResult{
+				et.NestedVerifierReport{
 					Subject:      "",
-					IsSuccess:    false,
 					ArtifactType: "application/vnd.cncf.notary.signature",
 				},
 			},
 			output: false,
 		},
 		{
-			// no artifact policies but 1 verifier result is false
+			name: "no artifact policies and 1 verifier result is false",
 			configPolicyConfig: map[string]interface{}{
 				"name":                         "configPolicy",
 				"artifactVerificationPolicies": map[string]types.ArtifactTypeVerifyPolicy{},
 			},
 			verifierReports: []interface{}{
-				vr.VerifierResult{
+				et.NestedVerifierReport{
 					Subject:      "",
-					IsSuccess:    true,
 					ArtifactType: "application/vnd.cncf.notary.signature",
-				},
-				vr.VerifierResult{
-					Subject:      "",
-					IsSuccess:    false,
-					ArtifactType: "application/vnd.cncf.notary.signature",
+					VerifierReports: []vr.VerifierResult{
+						{
+							IsSuccess: true,
+						},
+						{
+							IsSuccess: false,
+						},
+					},
 				},
 			},
 			output: false,
 		},
 		{
-			// no artifact policies but default relaxed to 'any' and 1 verifier result is false
+			name: "no artifact policies but default relaxed to 'any' and 1 verifier result is false",
 			configPolicyConfig: map[string]interface{}{
 				"name": "configPolicy",
 				"artifactVerificationPolicies": map[string]types.ArtifactTypeVerifyPolicy{
@@ -147,21 +149,23 @@ func TestPolicyEnforcer_OverallVerifyResult(t *testing.T) {
 				},
 			},
 			verifierReports: []interface{}{
-				vr.VerifierResult{
+				et.NestedVerifierReport{
 					Subject:      "",
-					IsSuccess:    true,
 					ArtifactType: "application/vnd.cncf.notary.signature",
-				},
-				vr.VerifierResult{
-					Subject:      "",
-					IsSuccess:    false,
-					ArtifactType: "application/vnd.cncf.notary.signature",
+					VerifierReports: []vr.VerifierResult{
+						{
+							IsSuccess: true,
+						},
+						{
+							IsSuccess: false,
+						},
+					},
 				},
 			},
 			output: true,
 		},
 		{
-			// any notation artifact policy but no artifact verifier reports
+			name: "any notation artifact policy but no artifact verifier reports",
 			configPolicyConfig: map[string]interface{}{
 				"name": "configPolicy",
 				"artifactVerificationPolicies": map[string]types.ArtifactTypeVerifyPolicy{
@@ -172,7 +176,7 @@ func TestPolicyEnforcer_OverallVerifyResult(t *testing.T) {
 			output:          false,
 		},
 		{
-			// any notation artifact policy and only 1 notation report is true
+			name: "any notation artifact policy and 1 success notation report",
 			configPolicyConfig: map[string]interface{}{
 				"name": "configPolicy",
 				"artifactVerificationPolicies": map[string]types.ArtifactTypeVerifyPolicy{
@@ -180,21 +184,23 @@ func TestPolicyEnforcer_OverallVerifyResult(t *testing.T) {
 				},
 			},
 			verifierReports: []interface{}{
-				vr.VerifierResult{
+				et.NestedVerifierReport{
 					Subject:      "",
-					IsSuccess:    true,
 					ArtifactType: "application/vnd.cncf.notary.signature",
-				},
-				vr.VerifierResult{
-					Subject:      "",
-					IsSuccess:    false,
-					ArtifactType: "application/vnd.cncf.notary.signature",
+					VerifierReports: []vr.VerifierResult{
+						{
+							IsSuccess: true,
+						},
+						{
+							IsSuccess: false,
+						},
+					},
 				},
 			},
 			output: true,
 		},
 		{
-			// all notation artifact policy but only 1 notation report is true
+			name: "all notation artifact policy and 1 success notation report",
 			configPolicyConfig: map[string]interface{}{
 				"name": "configPolicy",
 				"artifactVerificationPolicies": map[string]types.ArtifactTypeVerifyPolicy{
@@ -202,21 +208,23 @@ func TestPolicyEnforcer_OverallVerifyResult(t *testing.T) {
 				},
 			},
 			verifierReports: []interface{}{
-				vr.VerifierResult{
+				et.NestedVerifierReport{
 					Subject:      "",
-					IsSuccess:    true,
 					ArtifactType: "application/vnd.cncf.notary.signature",
-				},
-				vr.VerifierResult{
-					Subject:      "",
-					IsSuccess:    false,
-					ArtifactType: "application/vnd.cncf.notary.signature",
+					VerifierReports: []vr.VerifierResult{
+						{
+							IsSuccess: true,
+						},
+						{
+							IsSuccess: false,
+						},
+					},
 				},
 			},
 			output: false,
 		},
 		{
-			// all notation artifact policy and both notation reports are true
+			name: "all notation artifact policy and both notation reports are true",
 			configPolicyConfig: map[string]interface{}{
 				"name": "configPolicy",
 				"artifactVerificationPolicies": map[string]types.ArtifactTypeVerifyPolicy{
@@ -224,21 +232,24 @@ func TestPolicyEnforcer_OverallVerifyResult(t *testing.T) {
 				},
 			},
 			verifierReports: []interface{}{
-				vr.VerifierResult{
+				et.NestedVerifierReport{
 					Subject:      "",
-					IsSuccess:    true,
 					ArtifactType: "application/vnd.cncf.notary.signature",
-				},
-				vr.VerifierResult{
-					Subject:      "",
-					IsSuccess:    true,
-					ArtifactType: "application/vnd.cncf.notary.signature",
+					VerifierReports: []vr.VerifierResult{
+						{
+							IsSuccess: true,
+						},
+						{
+							IsSuccess: true,
+						},
+					},
 				},
 			},
 			output: true,
 		},
 		{
 			// any notation artifact policy, any sbom artifact policy and notation report is true and sbom is false
+			name: "any notation artifact policy, any sbom artifact policy and notation report is true and sbom is false",
 			configPolicyConfig: map[string]interface{}{
 				"name": "configPolicy",
 				"artifactVerificationPolicies": map[string]types.ArtifactTypeVerifyPolicy{
@@ -247,15 +258,23 @@ func TestPolicyEnforcer_OverallVerifyResult(t *testing.T) {
 				},
 			},
 			verifierReports: []interface{}{
-				vr.VerifierResult{
+				et.NestedVerifierReport{
 					Subject:      "",
-					IsSuccess:    true,
 					ArtifactType: "application/vnd.cncf.notary.signature",
+					VerifierReports: []vr.VerifierResult{
+						{
+							IsSuccess: true,
+						},
+					},
 				},
-				vr.VerifierResult{
+				et.NestedVerifierReport{
 					Subject:      "",
-					IsSuccess:    false,
 					ArtifactType: "application/spdx+json",
+					VerifierReports: []vr.VerifierResult{
+						{
+							IsSuccess: false,
+						},
+					},
 				},
 			},
 			output: false,
@@ -270,15 +289,23 @@ func TestPolicyEnforcer_OverallVerifyResult(t *testing.T) {
 				},
 			},
 			verifierReports: []interface{}{
-				vr.VerifierResult{
+				et.NestedVerifierReport{
 					Subject:      "",
-					IsSuccess:    true,
 					ArtifactType: "application/vnd.cncf.notary.signature",
+					VerifierReports: []vr.VerifierResult{
+						{
+							IsSuccess: true,
+						},
+					},
 				},
-				vr.VerifierResult{
+				et.NestedVerifierReport{
 					Subject:      "",
-					IsSuccess:    true,
 					ArtifactType: "application/spdx+json",
+					VerifierReports: []vr.VerifierResult{
+						{
+							IsSuccess: true,
+						},
+					},
 				},
 			},
 			output: true,
@@ -288,20 +315,22 @@ func TestPolicyEnforcer_OverallVerifyResult(t *testing.T) {
 	ctx := context.Background()
 
 	for _, testcase := range testcases {
-		config := pc.PoliciesConfig{
-			Version:      "1.0.0",
-			PolicyPlugin: testcase.configPolicyConfig,
-		}
+		t.Run(testcase.name, func(t *testing.T) {
+			config := pc.PoliciesConfig{
+				Version:      "1.0.0",
+				PolicyPlugin: testcase.configPolicyConfig,
+			}
 
-		policyEnforcer, err := pf.CreatePolicyProviderFromConfig(config)
-		if err != nil {
-			t.Fatalf("PolicyEnforcer should create from PoliciesConfig")
-		}
+			policyEnforcer, err := pf.CreatePolicyProviderFromConfig(config)
+			if err != nil {
+				t.Fatalf("PolicyEnforcer should create from PoliciesConfig")
+			}
 
-		overallVerifyResult := policyEnforcer.OverallVerifyResult(ctx, testcase.verifierReports)
-		if overallVerifyResult != testcase.output {
-			t.Fatalf("Expected %v from OverallVerifyResult but got %v", testcase.output, overallVerifyResult)
-		}
+			overallVerifyResult := policyEnforcer.OverallVerifyResult(ctx, testcase.verifierReports)
+			if overallVerifyResult != testcase.output {
+				t.Fatalf("Expected %v from OverallVerifyResult but got %v", testcase.output, overallVerifyResult)
+			}
+		})
 	}
 }
 

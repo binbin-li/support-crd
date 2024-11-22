@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	re "github.com/ratify-project/ratify/errors"
 	"github.com/ratify-project/ratify/pkg/common"
@@ -34,11 +35,13 @@ import (
 // PolicyEnforcer describes different polices that are enforced during verification
 type PolicyEnforcer struct {
 	ArtifactTypePolicies map[string]vt.ArtifactTypeVerifyPolicy
+	passthroughEnabled   bool
 }
 
 type configPolicyEnforcerConf struct {
 	Name                         string                                 `json:"name"`
 	ArtifactVerificationPolicies map[string]vt.ArtifactTypeVerifyPolicy `json:"artifactVerificationPolicies,omitempty"`
+	PassthroughEnabled           bool                                   `json:"passthroughEnabled"`
 }
 
 const (
@@ -46,6 +49,55 @@ const (
 )
 
 type configPolicyFactory struct{}
+
+type verifyResult struct {
+	artifactTypeToResult map[string]bool
+	mu                   sync.Mutex
+}
+
+type verifiedArtifactTypes struct {
+	artifactTypes map[string]struct{}
+	mu            sync.Mutex
+}
+
+func newVerifyResult() *verifyResult {
+	return &verifyResult{
+		artifactTypeToResult: map[string]bool{},
+		mu:                   sync.Mutex{},
+	}
+}
+
+func newVerifiedArtifactTypes() *verifiedArtifactTypes {
+	return &verifiedArtifactTypes{
+		artifactTypes: map[string]struct{}{},
+		mu:            sync.Mutex{},
+	}
+}
+
+func (r *verifyResult) set(artifactType string, result bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.artifactTypeToResult[artifactType] = result
+}
+
+func (r *verifyResult) get(artifactType string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.artifactTypeToResult[artifactType]
+}
+
+func (t *verifiedArtifactTypes) add(artifactType string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.artifactTypes[artifactType] = struct{}{}
+}
+
+func (t *verifiedArtifactTypes) exist(artifactType string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	_, ok := t.artifactTypes[artifactType]
+	return ok
+}
 
 // init calls Register for our config policy provider
 func init() {
@@ -98,7 +150,7 @@ func (enforcer PolicyEnforcer) ContinueVerifyOnFailure(_ context.Context, _ comm
 // ErrorToVerifyResult converts an error to a properly formatted verify result
 func (enforcer PolicyEnforcer) ErrorToVerifyResult(_ context.Context, subjectRefString string, verifyError error) types.VerifyResult {
 	verifierErr := re.ErrorCodeVerifyReferenceFailure.WithDetail(fmt.Sprintf("failed to verify artifact: %s", subjectRefString)).WithError(verifyError)
-	errorReport := verifier.NewVerifierResult(subjectRefString, "", "", "", false, &verifierErr, nil)
+	errorReport := verifier.NewVerifierResult("", "", "", false, &verifierErr, nil)
 	var reports []interface{}
 	reports = append(reports, errorReport)
 	return types.VerifyResult{IsSuccess: false, VerifierReports: reports}
@@ -107,55 +159,94 @@ func (enforcer PolicyEnforcer) ErrorToVerifyResult(_ context.Context, subjectRef
 // OverallVerifyResult determines the final outcome of verification that is constructed using the results from
 // individual verifications
 func (enforcer PolicyEnforcer) OverallVerifyResult(_ context.Context, verifierReports []interface{}) bool {
-	if len(verifierReports) <= 0 {
+	if enforcer.passthroughEnabled || len(verifierReports) <= 0 {
+		return false
+	}
+	result := newVerifyResult()
+	existingArtifactTypes := newVerifiedArtifactTypes()
+
+	for artifactType, policyType := range enforcer.ArtifactTypePolicies {
+		if policyType == vt.AllVerifySuccess {
+			result.set(artifactType, true)
+		} else {
+			result.set(artifactType, false)
+		}
+	}
+
+	castedVerifierReports := make([]types.NestedVerifierReport, len(verifierReports))
+	for i, report := range verifierReports {
+		castedReport := report.(types.NestedVerifierReport)
+		castedVerifierReports[i] = castedReport
+	}
+
+	enforcer.verifyReports(castedVerifierReports, result, existingArtifactTypes)
+
+	// if no artifact types are verified, return false
+	if len(existingArtifactTypes.artifactTypes) == 0 {
 		return false
 	}
 
-	// use boolean map to track if each artifact type policy constraint is satisfied
-	verifySuccess := map[string]bool{}
-	for artifactType := range enforcer.ArtifactTypePolicies {
-		// add all policies except for default
-		if artifactType != defaultPolicyName {
-			verifySuccess[artifactType] = false
+	for artifactType, policyType := range enforcer.ArtifactTypePolicies {
+		// if default policy is not evaluated, all artifacts should have been evaluated
+		// by corresponding policies, just skip the default policy.
+		if artifactType == defaultPolicyName && !existingArtifactTypes.exist(defaultPolicyName) {
+			continue
 		}
-	}
-
-	for _, report := range verifierReports {
-		castedReport := report.(verifier.VerifierResult)
-		// extract the policy for the artifact type of the verified artifact if specified
-		policyType, ok := enforcer.ArtifactTypePolicies[castedReport.ArtifactType]
-		// if artifact type policy not specified, set policy to be default policy and add artifact type to success map
-		if !ok {
-			policyType = enforcer.ArtifactTypePolicies[defaultPolicyName]
-		}
-		// set the artifact type success field in map to false to start
-		if _, ok = verifySuccess[castedReport.ArtifactType]; !ok {
-			verifySuccess[castedReport.ArtifactType] = false
-		}
-
-		if policyType == vt.AnyVerifySuccess && castedReport.IsSuccess {
-			// if policy is 'any' and report is successful
-			verifySuccess[castedReport.ArtifactType] = true
-		} else if policyType == vt.AllVerifySuccess {
-			// if policy is 'all'
-			if !castedReport.IsSuccess {
-				// return false after first failure
+		if policyType == vt.AnyVerifySuccess {
+			if !result.get(artifactType) {
 				return false
 			}
-			verifySuccess[castedReport.ArtifactType] = true
+		} else {
+			if !result.get(artifactType) || !existingArtifactTypes.exist(artifactType) {
+				return false
+			}
 		}
 	}
 
-	// all booleans in map must be true for overall success to be true
-	for artifactType := range verifySuccess {
-		if !verifySuccess[artifactType] {
-			return false
-		}
-	}
 	return true
 }
 
 // GetPolicyType returns the type of the policy.
 func (enforcer PolicyEnforcer) GetPolicyType(_ context.Context) string {
 	return vt.ConfigPolicy
+}
+
+func (enforcer PolicyEnforcer) verifyReports(verifierReports []types.NestedVerifierReport, result *verifyResult, existingArtifactTypes *verifiedArtifactTypes) {
+	wg := sync.WaitGroup{}
+	for _, report := range verifierReports {
+		report := report
+		if len(report.VerifierReports) == 0 {
+			continue
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			existingArtifactTypes.add(report.ArtifactType)
+
+			// extract the policy for the artifact type of the verified artifact if specified
+			artifactType := report.ArtifactType
+			policyType, ok := enforcer.ArtifactTypePolicies[report.ArtifactType]
+			// if artifact type policy not specified, set policy to be default policy and add artifact type to success map
+			if !ok {
+				policyType = enforcer.ArtifactTypePolicies[defaultPolicyName]
+				artifactType = defaultPolicyName
+			}
+			existingArtifactTypes.add(artifactType)
+
+			for _, verifierReport := range report.VerifierReports {
+				if policyType == vt.AnyVerifySuccess {
+					if verifierReport.IsSuccess {
+						result.set(artifactType, true)
+					}
+				} else {
+					if !verifierReport.IsSuccess {
+						result.set(artifactType, false)
+					}
+				}
+			}
+
+			enforcer.verifyReports(report.NestedReports, result, existingArtifactTypes)
+		}()
+	}
+	wg.Wait()
 }
