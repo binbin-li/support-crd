@@ -24,7 +24,6 @@ import (
 	"github.com/notaryproject/notation-go/verifier/truststore"
 	re "github.com/ratify-project/ratify/errors"
 	"github.com/ratify-project/ratify/internal/logger"
-	"github.com/ratify-project/ratify/pkg/controllers"
 	"github.com/ratify-project/ratify/pkg/keymanagementprovider"
 	"github.com/ratify-project/ratify/pkg/utils"
 )
@@ -75,22 +74,8 @@ func (s *trustStore) getCertificatesInternal(ctx context.Context, storeType trus
 				logger.GetLogger(ctx, logOpt).Warnf("unable to fetch certificates for Key Management Provider %+v: %v", certStore, kmpErr)
 			}
 			result := keymanagementprovider.FlattenKMPMap(certMap)
-			var certStoreErr error
-			// notation verifier does not consider specific named/versioned certificates within a key management provider resource
 			if len(result) == 0 {
-				logger.GetLogger(ctx, logOpt).Warnf("no certificate fetched for Key Management Provider %+v", certStore)
-				// check certificate store if key management provider does not have certificates.
-				// NOTE: certificate store and key management provider should not be configured together.
-				// User will be warned by the controller/CLI
-				if result, certStoreErr = controllers.NamespacedCertStores.GetCertsFromStore(ctx, certStore); certStoreErr != nil {
-					logger.GetLogger(ctx, logOpt).Warnf("unable to fetch certificates for Certificate Store %+v: %v", certStore, certStoreErr)
-				}
-				if len(result) == 0 {
-					logger.GetLogger(ctx, logOpt).Warnf("no certificate fetched for Certificate Store %+v", certStore)
-				}
-			}
-			if err := parseErrFromKmpAndCertStore(kmpErr, certStoreErr); err != nil {
-				return []*x509.Certificate{}, re.ErrorCodeCertInvalid.WithError(err).WithDetail(fmt.Sprintf("unable to fetch certificates from Key Management Provider and Certificate Store: %s", certStore))
+				logger.GetLogger(ctx, logOpt).Warnf("no certificate fetched for Certificate Store %+v", certStore)
 			}
 			certs = append(certs, result...)
 		}
