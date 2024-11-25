@@ -14,7 +14,6 @@ limitations under the License.
 package controllers
 
 import (
-	cs "github.com/ratify-project/ratify/pkg/customresources/certificatestores"
 	"github.com/ratify-project/ratify/pkg/customresources/policies"
 	rs "github.com/ratify-project/ratify/pkg/customresources/referrerstores"
 	"github.com/ratify-project/ratify/pkg/customresources/verifiers"
@@ -30,7 +29,4 @@ var (
 
 	// NamespacedStores is a map to track active stores across namespaces.
 	NamespacedStores = rs.NewActiveStores()
-
-	// NamespacedCertStores is a map between namespace and CertificateStores.
-	NamespacedCertStores = cs.NewActiveCertStores()
 )
