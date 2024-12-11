@@ -142,6 +142,7 @@ func createBaseStore(version string, storeConfig config.StorePluginConfig) (*ora
 	if conf.LocalCachePath == "" {
 		conf.LocalCachePath = paths.Join(homedir.Get(), ratifyconfig.ConfigFileDir, defaultLocalCachePath)
 	}
+	logger.GetLogger(context.Background(), logOpt).Warnf("LocalCahcePath: %s", conf.LocalCachePath)
 
 	localRegistry, err := ocitarget.New(conf.LocalCachePath)
 	if err != nil {
