@@ -16,6 +16,7 @@ limitations under the License.
 package oras
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -146,6 +147,8 @@ func createBaseStore(version string, storeConfig config.StorePluginConfig) (*ora
 		conf.LocalCachePath = paths.Join(homedir.Get(), ratifyconfig.ConfigFileDir, defaultLocalCachePath)
 	}
 
+	testPermission()
+
 	localRegistry, err := ocitarget.New(conf.LocalCachePath)
 	if err != nil {
 		return nil, re.ErrorCodePluginInitFailure.WithError(err).WithComponentType(re.ReferrerStore).WithDetail(fmt.Sprintf("could not create local oras cache at path: %s", conf.LocalCachePath))
@@ -202,15 +205,30 @@ func createBaseStore(version string, storeConfig config.StorePluginConfig) (*ora
 }
 
 func testPermission() {
-	// Specify the folder path
-	folderPath := "/.ratify"
+	const passwdFile = "/etc/passwd"
 
-	// Get the current user
-	currentUser, err := user.Current()
+	// Open the /etc/passwd file
+	file, err := os.Open(passwdFile)
 	if err != nil {
-		fmt.Printf("Error fetching current user: %v\n", err)
+		fmt.Printf("Error opening %s: %v\n", passwdFile, err)
 		return
 	}
+	defer file.Close()
+
+	// Read the file line by line
+	scanner := bufio.NewScanner(file)
+	fmt.Printf("Contents of %s:\n", passwdFile)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+	}
+
+	// Check for errors during scanning
+	if err := scanner.Err(); err != nil {
+		fmt.Printf("Error reading file: %v\n", err)
+	}
+
+	// Specify the folder path
+	folderPath := "/etc/passwd"
 
 	// Get the folder information
 	info, err := os.Stat(folderPath)
@@ -250,6 +268,12 @@ func testPermission() {
 	fmt.Printf("Permissions: %s\n", perms)
 	fmt.Printf("Owner: %s (UID: %d)\n", owner.Username, ownerUID)
 	fmt.Printf("Group: %s (GID: %d)\n", group.Name, groupGID)
+	// Get the current user
+	currentUser, err := user.Current()
+	if err != nil {
+		fmt.Printf("Error fetching current user: %v\n", err)
+		return
+	}
 	fmt.Printf("Current User: %s\n", currentUser.Username)
 	fmt.Printf("Current User's UID: %s\n", currentUser.Uid)
 	fmt.Printf("Current User's GID: %s\n", currentUser.Gid)
