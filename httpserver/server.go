@@ -29,9 +29,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/deislabs/ratify/config"
-	"github.com/deislabs/ratify/internal/logger"
-	"github.com/deislabs/ratify/pkg/metrics"
+	"github.com/ratify-project/ratify/config"
+	"github.com/ratify-project/ratify/internal/logger"
+	"github.com/ratify-project/ratify/pkg/metrics"
 
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -42,6 +42,7 @@ const (
 	certName                         = "tls.crt"
 	keyName                          = "tls.key"
 	readHeaderTimeout                = 5 * time.Second
+	idleTimeout                      = 90 * time.Second
 	defaultMutationReferrerStoreName = "oras"
 
 	DefaultMetricsType = "prometheus"
@@ -135,10 +136,13 @@ func (server *Server) Run(certRotatorReady chan struct{}) error {
 		Addr:              server.Address,
 		Handler:           server.Router,
 		ReadHeaderTimeout: readHeaderTimeout,
+		IdleTimeout:       idleTimeout,
 	}
 
 	if server.CertDirectory != "" {
-		<-certRotatorReady
+		if certRotatorReady != nil {
+			<-certRotatorReady
+		}
 		certFile := filepath.Join(server.CertDirectory, certName)
 		keyFile := filepath.Join(server.CertDirectory, keyName)
 
@@ -178,13 +182,13 @@ func (server *Server) registerHandlers() error {
 	if err != nil {
 		return err
 	}
-	server.register(http.MethodPost, verifyPath, processTimeout(server.verify, server.GetExecutor().GetVerifyRequestTimeout(), false))
+	server.register(http.MethodPost, verifyPath, processTimeout(server.verify, server.GetExecutor(server.Context).GetVerifyRequestTimeout(), false))
 
 	mutatePath, err := url.JoinPath(ServerRootURL, "mutate")
 	if err != nil {
 		return err
 	}
-	server.register(http.MethodPost, mutatePath, processTimeout(server.mutate, server.GetExecutor().GetMutationRequestTimeout(), true))
+	server.register(http.MethodPost, mutatePath, processTimeout(server.mutate, server.GetExecutor(server.Context).GetMutationRequestTimeout(), true))
 
 	return nil
 }

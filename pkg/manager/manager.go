@@ -27,16 +27,15 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	"github.com/deislabs/ratify/config"
-	"github.com/deislabs/ratify/httpserver"
-	"github.com/deislabs/ratify/pkg/featureflag"
-	"github.com/deislabs/ratify/pkg/policyprovider"
-	_ "github.com/deislabs/ratify/pkg/policyprovider/configpolicy" // register config policy provider
-	_ "github.com/deislabs/ratify/pkg/policyprovider/regopolicy"   // register rego policy provider
-	_ "github.com/deislabs/ratify/pkg/referrerstore/oras"          // register ORAS referrer store
-	"github.com/deislabs/ratify/pkg/utils"
-	_ "github.com/deislabs/ratify/pkg/verifier/notation" // register notation verifier
 	"github.com/open-policy-agent/cert-controller/pkg/rotator"
+	"github.com/ratify-project/ratify/config"
+	"github.com/ratify-project/ratify/httpserver"
+	"github.com/ratify-project/ratify/pkg/featureflag"
+	_ "github.com/ratify-project/ratify/pkg/policyprovider/configpolicy" // register config policy provider
+	_ "github.com/ratify-project/ratify/pkg/policyprovider/regopolicy"   // register rego policy provider
+	_ "github.com/ratify-project/ratify/pkg/referrerstore/oras"          // register ORAS referrer store
+	"github.com/ratify-project/ratify/pkg/utils"
+	_ "github.com/ratify-project/ratify/pkg/verifier/notation" // register notation verifier
 	"github.com/sirupsen/logrus"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // import additional authentication methods
 
@@ -47,12 +46,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
-	configv1alpha1 "github.com/deislabs/ratify/api/v1alpha1"
-	configv1beta1 "github.com/deislabs/ratify/api/v1beta1"
-	"github.com/deislabs/ratify/pkg/controllers"
-	ef "github.com/deislabs/ratify/pkg/executor/core"
-	"github.com/deislabs/ratify/pkg/referrerstore"
-	vr "github.com/deislabs/ratify/pkg/verifier"
+	configv1alpha1 "github.com/ratify-project/ratify/api/v1alpha1"
+	configv1beta1 "github.com/ratify-project/ratify/api/v1beta1"
+	ctxUtils "github.com/ratify-project/ratify/internal/context"
+	"github.com/ratify-project/ratify/pkg/controllers"
+	"github.com/ratify-project/ratify/pkg/controllers/clusterresource"
+	"github.com/ratify-project/ratify/pkg/controllers/namespaceresource"
+	ef "github.com/ratify-project/ratify/pkg/executor/core"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -84,28 +84,12 @@ func StartServer(httpServerAddress, configFilePath, certDirectory, caCertFile st
 	}
 
 	// initialize server
-	server, err := httpserver.NewServer(context.Background(), httpServerAddress, func() *ef.Executor {
-		var activeVerifiers []vr.ReferenceVerifier
-		var activeStores []referrerstore.ReferrerStore
-		var activePolicyEnforcer policyprovider.PolicyProvider
+	server, err := httpserver.NewServer(context.Background(), httpServerAddress, func(ctx context.Context) *ef.Executor {
+		namespace := ctxUtils.GetNamespace(ctx)
 
-		// check if there are active verifiers from crd controller
-		if len(controllers.VerifierMap) > 0 {
-			for _, value := range controllers.VerifierMap {
-				activeVerifiers = append(activeVerifiers, value)
-			}
-		}
-
-		// check if there are active stores from crd controller
-		if len(controllers.StoreMap) > 0 {
-			for _, value := range controllers.StoreMap {
-				activeStores = append(activeStores, value)
-			}
-		}
-
-		if !controllers.ActivePolicy.IsEmpty() {
-			activePolicyEnforcer = controllers.ActivePolicy.Enforcer
-		}
+		activeVerifiers := controllers.NamespacedVerifiers.GetVerifiers(namespace)
+		activePolicyEnforcer := controllers.NamespacedPolicies.GetPolicy(namespace)
+		activeStores := controllers.NamespacedStores.GetStores(namespace)
 
 		// return executor with latest configuration
 		executor := ef.Executor{
@@ -121,7 +105,7 @@ func StartServer(httpServerAddress, configFilePath, certDirectory, caCertFile st
 		logrus.Errorf("initialize server failed with error %v, exiting..", err)
 		os.Exit(1)
 	}
-	logrus.Infof("starting server at" + httpServerAddress)
+	logrus.Infof("starting server at %s", httpServerAddress)
 	if err := server.Run(certRotatorReady); err != nil {
 		logrus.Errorf("starting server failed with error %v, exiting..", err)
 		os.Exit(1)
@@ -146,7 +130,7 @@ func StartManager(certRotatorReady chan struct{}, probeAddr string) {
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "1a306109.github.com/deislabs/ratify",
+		LeaderElectionID:       "1a306109.github.com/ratify-project/ratify",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -209,39 +193,67 @@ func StartManager(certRotatorReady chan struct{}, probeAddr string) {
 		close(certRotatorReady)
 	}
 
-	if err = (&controllers.VerifierReconciler{
+	if err = (&clusterresource.VerifierReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Verifier")
+		setupLog.Error(err, "unable to create controller", "controller", "Cluster Verifier")
 		os.Exit(1)
 	}
-	if err = (&controllers.StoreReconciler{
+	if err = (&namespaceresource.VerifierReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Namespaced Verifier")
+		os.Exit(1)
+	}
+	if err = (&clusterresource.StoreReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Store")
 		os.Exit(1)
 	}
-	if err = (&controllers.CertificateStoreReconciler{
+	if err = (&namespaceresource.StoreReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Certificate Store")
+		setupLog.Error(err, "unable to create controller", "controller", "Namespaced Store")
 		os.Exit(1)
 	}
-	if err = (&controllers.PolicyReconciler{
+	if err = (&namespaceresource.CertificateStoreReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Namespaced Certificate Store")
+		os.Exit(1)
+	}
+	if err = (&namespaceresource.PolicyReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Namespaced Policy")
+		os.Exit(1)
+	}
+	if err = (&clusterresource.PolicyReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Policy")
 		os.Exit(1)
 	}
-	if err = (&controllers.KeyManagementProviderReconciler{
+	if err = (&clusterresource.KeyManagementProviderReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Key Management Provider")
+		setupLog.Error(err, "unable to create controller", "controller", "Cluster Key Management Provider")
+		os.Exit(1)
+	}
+	if err = (&namespaceresource.KeyManagementProviderReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Namespaced Key Management Provider")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

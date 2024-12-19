@@ -6,10 +6,12 @@
 
 Is a verification engine as a binary executable and on Kubernetes which enables verification of artifact security metadata and admits for deployment only those that comply with policies you create.
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/deislabs/ratify)](https://goreportcard.com/report/github.com/deislabs/ratify)
-[![build-pr](https://github.com/deislabs/ratify/actions/workflows/build-pr.yml/badge.svg)](https://github.com/deislabs/ratify/actions/workflows/build-pr.yml)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/deislabs/ratify/badge)](https://api.securityscorecards.dev/projects/github.com/deislabs/ratify)
-[![Go Reference](https://pkg.go.dev/badge/github.com/deislabs/ratify.svg)](https://pkg.go.dev/github.com/deislabs/ratify)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ratify-project/ratify)](https://goreportcard.com/report/github.com/ratify-project/ratify)
+[![build-pr](https://github.com/ratify-project/ratify/actions/workflows/build-pr.yml/badge.svg)](https://github.com/ratify-project/ratify/actions/workflows/build-pr.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/ratify-project/ratify/badge)](https://api.securityscorecards.dev/projects/github.com/ratify-project/ratify)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9334/badge)](https://www.bestpractices.dev/projects/9334)
+[![Go Reference](https://pkg.go.dev/badge/github.com/ratify-project/ratify.svg)](https://pkg.go.dev/github.com/ratify-project/ratify)
+[![codecov](https://codecov.io/gh/ratify-project/ratify/graph/badge.svg?token=3X0BIPI4VD)](https://codecov.io/gh/ratify-project/ratify)
 
 ## Table of Contents
 
@@ -20,6 +22,7 @@ Is a verification engine as a binary executable and on Kubernetes which enables 
   - [Pull Request Review Series](#pull-request-review-series)
   - [Documents](#documents)
   - [Code of Conduct](#code-of-conduct)
+  - [Project Governance](#project-governance)
   - [Release Management](#release-management)
   - [Licensing](#licensing)
   - [Trademark](#trademark)
@@ -43,19 +46,19 @@ Get Ratify Community Meeting Calendar [here](https://calendar.google.com/calenda
 
 ## Documents
 
-Please see the [Ratify website](https://ratify.dev/docs/what-is-ratify)  for more in-depth information.
+Please see the [Ratify website](https://ratify.dev/docs/what-is-ratify) for more in-depth information.
 
-Meeting notes for weekly project syncs can be found [here](https://hackmd.io/ABueHjizRz2iFQpWnQrnNA?both)
+Meeting notes for weekly project syncs can be found [here](https://hackmd.io/ABueHjizRz2iFQpWnQrnNA?both).
+
+The Ratify community documents can be found in the repository [`.github`](https://github.com/ratify-project/.github).
 
 ## Code of Conduct
 
-This project has adopted the [Microsoft Open Source Code of
-Conduct](https://opensource.microsoft.com/codeofconduct/).
+Ratify follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
-For more information see the [Code of Conduct
-FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact
-[opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional
-questions or comments.
+## Project Governance
+
+The Ratify project governance can be found [here](https://github.com/ratify-project/.github/blob/main/GOVERNANCE.md).
 
 ## Release Management
 

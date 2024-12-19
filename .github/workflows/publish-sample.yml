@@ -1,11 +1,11 @@
 name: publish-sample
 
-on: 
- workflow_dispatch:
+on:
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  
+
 permissions:
   contents: read
 
@@ -17,22 +17,25 @@ jobs:
     permissions:
       contents: write
       packages: write
-    steps:            
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+
       - name: Get repo
-        run: |          
+        run: |
           echo "REPOSITORY=${{ env.REGISTRY }}/${{ github.repository }}" >> $GITHUB_ENV
 
       - name: Log in to the GHCR
-        uses: docker/login-action@e92390c5fb421da1463c202d546fed0ec5c39f20 # v3.1.0
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Copy signed sample test image
-        run: 
-          oras cp -r wabbitnetworks.azurecr.io/ratify/notary-image:signed ${REPOSITORY}/notary-image:signed
+        run: oras cp -r wabbitnetworks.azurecr.io/ratify/notary-image:signed ${REPOSITORY}/notary-image:signed
 
-      - name: Copy unsigned sample test image 
-        run: 
-          oras cp wabbitnetworks.azurecr.io/ratify/notary-image:unsigned ${REPOSITORY}/notary-image:unsigned
+      - name: Copy unsigned sample test image
+        run: oras cp wabbitnetworks.azurecr.io/ratify/notary-image:unsigned ${REPOSITORY}/notary-image:unsigned

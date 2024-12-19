@@ -22,11 +22,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/deislabs/ratify/config"
-	"github.com/deislabs/ratify/internal/logger"
-	"github.com/deislabs/ratify/pkg/ocispecs"
-	sf "github.com/deislabs/ratify/pkg/referrerstore/factory"
-	"github.com/deislabs/ratify/pkg/utils"
+	"github.com/ratify-project/ratify/config"
+	"github.com/ratify-project/ratify/internal/logger"
+	"github.com/ratify-project/ratify/pkg/ocispecs"
+	sf "github.com/ratify-project/ratify/pkg/referrerstore/factory"
+	"github.com/ratify-project/ratify/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -46,7 +46,7 @@ func NewCmdReferrer(argv ...string) *cobra.Command {
 		Use:   referrerUse,
 		Short: "Discover referrers for a subject",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Usage()
 		},
 	}
@@ -71,7 +71,7 @@ func NewCmdShowBlob(argv ...string) *cobra.Command {
 		Short:   "show blob at a digest",
 		Example: eg,
 		Args:    cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			return showBlob(opts)
 		},
 	}
@@ -97,10 +97,10 @@ func NewCmdShowRefManifest(argv ...string) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "show-manifest [OPTIONS]",
-		Short:   "show rference manifest at a digest",
+		Short:   "show reference manifest at a digest",
 		Example: eg,
 		Args:    cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			return showRefManifest(opts)
 		},
 	}
@@ -184,10 +184,6 @@ func showRefManifest(opts referrerCmdOptions) error {
 		return err
 	}
 
-	if subRef.Digest == "" {
-		fmt.Println(taggedReferenceWarning)
-	}
-
 	digest, err := utils.ParseDigest(opts.digest)
 	if err != nil {
 		return err
@@ -196,6 +192,10 @@ func showRefManifest(opts referrerCmdOptions) error {
 	cf, err := config.Load(opts.configFilePath)
 	if err != nil {
 		return err
+	}
+
+	if subRef.Digest == "" {
+		logger.GetLogger(context.Background(), logOpt).Warn(taggedReferenceWarning)
 	}
 
 	stores, err := sf.CreateStoresFromConfig(cf.StoresConfig, config.GetDefaultPluginPath())

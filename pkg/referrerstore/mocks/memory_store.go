@@ -17,12 +17,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/deislabs/ratify/pkg/common"
-	"github.com/deislabs/ratify/pkg/ocispecs"
-	"github.com/deislabs/ratify/pkg/referrerstore"
-	"github.com/deislabs/ratify/pkg/referrerstore/config"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/ratify-project/ratify/pkg/common"
+	"github.com/ratify-project/ratify/pkg/ocispecs"
+	"github.com/ratify-project/ratify/pkg/referrerstore"
+	"github.com/ratify-project/ratify/pkg/referrerstore/config"
 )
 
 type MemoryTestStore struct {
@@ -53,14 +53,14 @@ func (store *MemoryTestStore) GetBlobContent(_ context.Context, _ common.Referen
 	if item, ok := store.Blobs[digest]; ok {
 		return item, nil
 	}
-	return nil, nil
+	return nil, fmt.Errorf("blob not found")
 }
 
 func (store *MemoryTestStore) GetReferenceManifest(_ context.Context, _ common.Reference, desc ocispecs.ReferenceDescriptor) (ocispecs.ReferenceManifest, error) {
 	if item, ok := store.Manifests[desc.Digest]; ok {
 		return item, nil
 	}
-	return ocispecs.ReferenceManifest{}, nil
+	return ocispecs.ReferenceManifest{}, fmt.Errorf("manifest not found")
 }
 
 func (store *MemoryTestStore) GetConfig() *config.StoreConfig {

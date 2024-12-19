@@ -19,61 +19,117 @@ package azurekeyvault
 // Source: https://github.com/Azure/secrets-store-csi-driver-provider-azure/tree/release-1.4/pkg/provider
 import (
 	"context"
+	"crypto"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
-	"reflect"
+	"io"
+	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
-	re "github.com/deislabs/ratify/errors"
-	"github.com/deislabs/ratify/internal/logger"
-	"github.com/deislabs/ratify/pkg/keymanagementprovider"
-	"github.com/deislabs/ratify/pkg/keymanagementprovider/azurekeyvault/types"
-	"github.com/deislabs/ratify/pkg/keymanagementprovider/config"
-	"github.com/deislabs/ratify/pkg/keymanagementprovider/factory"
-	"github.com/deislabs/ratify/pkg/metrics"
+	"github.com/go-jose/go-jose/v3"
+	re "github.com/ratify-project/ratify/errors"
+	"github.com/ratify-project/ratify/internal/logger"
+	"github.com/ratify-project/ratify/pkg/keymanagementprovider"
+	"github.com/ratify-project/ratify/pkg/keymanagementprovider/azurekeyvault/types"
+	"github.com/ratify-project/ratify/pkg/keymanagementprovider/config"
+	"github.com/ratify-project/ratify/pkg/keymanagementprovider/factory"
+	"github.com/ratify-project/ratify/pkg/metrics"
 	"golang.org/x/crypto/pkcs12"
 
-	kv "github.com/Azure/azure-sdk-for-go/services/keyvault/v7.1/keyvault"
-	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azcertificates"
+	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azkeys"
+	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets"
 )
 
 const (
-	providerName      string = "azurekeyvault"
+	ProviderName      string = "azurekeyvault"
 	PKCS12ContentType string = "application/x-pkcs12"
 	PEMContentType    string = "application/x-pem-file"
 )
 
 var logOpt = logger.Option{
-	ComponentType: logger.CertProvider,
+	ComponentType: logger.KeyManagementProvider,
 }
 
 type AKVKeyManagementProviderConfig struct {
-	Type         string                      `json:"type"`
-	VaultURI     string                      `json:"vaultURI"`
-	TenantID     string                      `json:"tenantID"`
-	ClientID     string                      `json:"clientID"`
-	CloudName    string                      `json:"cloudName,omitempty"`
-	Certificates []types.KeyVaultCertificate `json:"certificates,omitempty"`
+	Type         string                `json:"type"`
+	VaultURI     string                `json:"vaultURI"`
+	TenantID     string                `json:"tenantID"`
+	ClientID     string                `json:"clientID"`
+	Resource     string                `json:"resource,omitempty"`
+	Certificates []types.KeyVaultValue `json:"certificates,omitempty"`
+	Keys         []types.KeyVaultValue `json:"keys,omitempty"`
 }
 
 type akvKMProvider struct {
-	provider     string
-	vaultURI     string
-	tenantID     string
-	clientID     string
-	cloudName    string
-	certificates []types.KeyVaultCertificate
-	cloudEnv     *azure.Environment
+	provider            string
+	vaultURI            string
+	tenantID            string
+	clientID            string
+	resource            string
+	certificates        []types.KeyVaultValue
+	keys                []types.KeyVaultValue
+	keyKVClient         keyKVClient
+	secretKVClient      secretKVClient
+	certificateKVClient certificateKVClient
 }
+
 type akvKMProviderFactory struct{}
+
+// kvClient is an interface to interact with the keyvault client used for mocking purposes
+type keyKVClient interface {
+	// GetKey retrieves a key from the keyvault
+	GetKey(ctx context.Context, keyName string, keyVersion string) (azkeys.GetKeyResponse, error)
+}
+type secretKVClient interface {
+	// GetSecret retrieves a secret from the keyvault
+	GetSecret(ctx context.Context, secretName string, secretVersion string) (azsecrets.GetSecretResponse, error)
+}
+type certificateKVClient interface {
+	// GetCertificate retrieves a certificate from the keyvault
+	GetCertificate(ctx context.Context, certificateName string, certificateVersion string) (azcertificates.GetCertificateResponse, error)
+}
+
+type keyKVClientImpl struct {
+	azkeys.Client
+}
+type secretKVClientImpl struct {
+	azsecrets.Client
+}
+type certificateKVClientImpl struct {
+	azcertificates.Client
+}
+
+// GetCertificate retrieves a certificate from the keyvault
+func (c *certificateKVClientImpl) GetCertificate(ctx context.Context, certificateName string, certificateVersion string) (azcertificates.GetCertificateResponse, error) {
+	return c.Client.GetCertificate(ctx, certificateName, certificateVersion, nil)
+}
+
+// GetKey retrieves a key from the keyvault
+func (c *keyKVClientImpl) GetKey(ctx context.Context, keyName string, keyVersion string) (azkeys.GetKeyResponse, error) {
+	return c.Client.GetKey(ctx, keyName, keyVersion, nil)
+}
+
+// GetSecret retrieves a secret from the keyvault
+func (c *secretKVClientImpl) GetSecret(ctx context.Context, secretName string, secretVersion string) (azsecrets.GetSecretResponse, error) {
+	return c.Client.GetSecret(ctx, secretName, secretVersion, nil)
+}
+
+// initKVClient is a function to initialize the keyvault client
+// used for mocking purposes
+var initKVClient = initializeKvClient
 
 // init calls to register the provider
 func init() {
-	factory.Register(providerName, &akvKMProviderFactory{})
+	factory.Register(ProviderName, &akvKMProviderFactory{})
 }
 
 // Create creates a new instance of the provider after marshalling and validating the configuration
@@ -86,30 +142,37 @@ func (f *akvKMProviderFactory) Create(_ string, keyManagementProviderConfig conf
 	}
 
 	if err := json.Unmarshal(keyManagementProviderConfigBytes, &conf); err != nil {
-		return nil, re.ErrorCodeConfigInvalid.NewError(re.CertProvider, "", re.EmptyLink, err, "failed to parse AKV key management provider configuration", re.HideStackTrace)
+		return nil, re.ErrorCodeConfigInvalid.NewError(re.KeyManagementProvider, "", re.EmptyLink, err, "failed to parse AKV key management provider configuration", re.HideStackTrace)
 	}
 
-	azureCloudEnv, err := parseAzureEnvironment(conf.CloudName)
-	if err != nil {
-		return nil, re.ErrorCodeConfigInvalid.NewError(re.CertProvider, providerName, re.EmptyLink, nil, fmt.Sprintf("cloudName %s is not valid", conf.CloudName), re.HideStackTrace)
-	}
-
-	if len(conf.Certificates) == 0 {
-		return nil, re.ErrorCodeConfigInvalid.NewError(re.CertProvider, providerName, re.EmptyLink, nil, "no keyvault certificates configured", re.HideStackTrace)
+	if len(conf.Certificates) == 0 && len(conf.Keys) == 0 {
+		return nil, re.ErrorCodeConfigInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, nil, "no keyvault certificates or keys configured", re.HideStackTrace)
 	}
 
 	provider := &akvKMProvider{
-		provider:     providerName,
+		provider:     ProviderName,
 		vaultURI:     strings.TrimSpace(conf.VaultURI),
 		tenantID:     strings.TrimSpace(conf.TenantID),
 		clientID:     strings.TrimSpace(conf.ClientID),
-		cloudName:    strings.TrimSpace(conf.CloudName),
 		certificates: conf.Certificates,
-		cloudEnv:     azureCloudEnv,
+		keys:         conf.Keys,
+		resource:     conf.Resource,
 	}
 	if err := provider.validate(); err != nil {
 		return nil, err
 	}
+
+	// credProvider is nil, so we will create a new workload identity credential inside the function
+	// For testing purposes, we can pass in a mock credential provider
+	var credProvider azcore.TokenCredential
+	keyKVClient, secretKVClient, certificateKVClient, err := initKVClient(provider.vaultURI, provider.tenantID, provider.clientID, credProvider)
+	if err != nil {
+		return nil, re.ErrorCodePluginInitFailure.NewError(re.KeyManagementProvider, ProviderName, re.AKVLink, err, "failed to create keyvault client", re.HideStackTrace)
+	}
+
+	provider.keyKVClient = &keyKVClientImpl{*keyKVClient}
+	provider.secretKVClient = &secretKVClientImpl{*secretKVClient}
+	provider.certificateKVClient = &certificateKVClientImpl{*certificateKVClient}
 
 	return provider, nil
 }
@@ -117,119 +180,165 @@ func (f *akvKMProviderFactory) Create(_ string, keyManagementProviderConfig conf
 // GetCertificates returns an array of certificates based on certificate properties defined in config
 // get certificate retrieve the entire cert chain using getSecret API call
 func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementprovider.KMPMapKey][]*x509.Certificate, keymanagementprovider.KeyManagementProviderStatus, error) {
-	logger.GetLogger(ctx, logOpt).Debugf("vaultURI %s", s.vaultURI)
-
-	kvClient, err := initializeKvClient(ctx, s.cloudEnv.KeyVaultEndpoint, s.tenantID, s.clientID)
-	if err != nil {
-		return nil, nil, re.ErrorCodePluginInitFailure.NewError(re.CertProvider, providerName, re.AKVLink, err, "failed to get keyvault client", re.HideStackTrace)
-	}
-
 	certsMap := map[keymanagementprovider.KMPMapKey][]*x509.Certificate{}
 	certsStatus := []map[string]string{}
 	for _, keyVaultCert := range s.certificates {
-		logger.GetLogger(ctx, logOpt).Debugf("fetching secret from key vault, certName %v,  keyvault %v", keyVaultCert.Name, s.vaultURI)
+		logger.GetLogger(ctx, logOpt).Debugf("fetching secret from key vault, certName %v, certVersion %v, vaultURI: %v", keyVaultCert.Name, keyVaultCert.Version, s.vaultURI)
 
-		// fetch the object from Key Vault
-		// GetSecret is required so we can fetch the entire cert chain. See issue https://github.com/deislabs/ratify/issues/695 for details
 		startTime := time.Now()
-		secretBundle, err := kvClient.GetSecret(ctx, s.vaultURI, keyVaultCert.Name, keyVaultCert.Version)
-
+		secretResponse, err := s.secretKVClient.GetSecret(ctx, keyVaultCert.Name, keyVaultCert.Version)
 		if err != nil {
+			if isSecretDisabledError(err) {
+				// if secret is disabled, get the version of the certificate for status
+				certResponse, err := s.certificateKVClient.GetCertificate(ctx, keyVaultCert.Name, keyVaultCert.Version)
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to get certificate objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
+				}
+				certBundle := certResponse.CertificateBundle
+				keyVaultCert.Version = getObjectVersion(*certBundle.KID)
+				isEnabled := *certBundle.Attributes.Enabled
+				lastRefreshed := startTime.Format(time.RFC3339)
+				certProperty := getStatusProperty(keyVaultCert.Name, keyVaultCert.Version, lastRefreshed, isEnabled)
+				certsStatus = append(certsStatus, certProperty)
+				mapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
+				keymanagementprovider.DeleteCertificateFromMap(s.resource, mapKey)
+				continue
+			}
 			return nil, nil, fmt.Errorf("failed to get secret objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
 		}
 
-		certResult, certProperty, err := getCertsFromSecretBundle(ctx, secretBundle, keyVaultCert.Name)
+		secretBundle := secretResponse.SecretBundle
+		isEnabled := *secretBundle.Attributes.Enabled
 
+		certResult, certProperty, err := getCertsFromSecretBundle(ctx, secretBundle, keyVaultCert.Name, isEnabled)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get certificates from secret bundle:%w", err)
 		}
 
 		metrics.ReportAKVCertificateDuration(ctx, time.Since(startTime).Milliseconds(), keyVaultCert.Name)
 		certsStatus = append(certsStatus, certProperty...)
-		certMapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version}
+		certMapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
 		certsMap[certMapKey] = certResult
 	}
-
-	return certsMap, getCertStatusMap(certsStatus), nil
+	return certsMap, getStatusMap(certsStatus, types.CertificatesStatus), nil
 }
 
-// azure keyvault provider certificate status is a map from "certificates" key to an array of of certificate status
-func getCertStatusMap(certsStatus []map[string]string) keymanagementprovider.KeyManagementProviderStatus {
+// GetKeys returns an array of keys based on key properties defined in config
+func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.KMPMapKey]crypto.PublicKey, keymanagementprovider.KeyManagementProviderStatus, error) {
+	keysMap := map[keymanagementprovider.KMPMapKey]crypto.PublicKey{}
+	keysStatus := []map[string]string{}
+
+	for _, keyVaultKey := range s.keys {
+		logger.GetLogger(ctx, logOpt).Debugf("fetching key from key vault, keyName %v,  keyvault %v", keyVaultKey.Name, s.vaultURI)
+
+		// fetch the key object from Key Vault
+		startTime := time.Now()
+		keyResponse, err := s.keyKVClient.GetKey(ctx, keyVaultKey.Name, keyVaultKey.Version)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get key objectName:%s, objectVersion:%s, error: %w", keyVaultKey.Name, keyVaultKey.Version, err)
+		}
+		keyBundle := keyResponse.KeyBundle
+		isEnabled := *keyBundle.Attributes.Enabled
+		// if version is set as "" in the config, use the version from the key bundle
+		keyVaultKey.Version = getObjectVersion(string(*keyBundle.Key.KID))
+
+		if !isEnabled {
+			startTime := time.Now()
+			lastRefreshed := startTime.Format(time.RFC3339)
+			properties := getStatusProperty(keyVaultKey.Name, keyVaultKey.Version, lastRefreshed, isEnabled)
+			keysStatus = append(keysStatus, properties)
+			mapKey := keymanagementprovider.KMPMapKey{Name: keyVaultKey.Name, Version: keyVaultKey.Version, Enabled: isEnabled}
+			keymanagementprovider.DeleteKeyFromMap(s.resource, mapKey)
+			continue
+		}
+
+		publicKey, err := getKeyFromKeyBundle(keyBundle)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get key from key bundle:%w", err)
+		}
+		keysMap[keymanagementprovider.KMPMapKey{Name: keyVaultKey.Name, Version: keyVaultKey.Version, Enabled: isEnabled}] = publicKey
+		metrics.ReportAKVCertificateDuration(ctx, time.Since(startTime).Milliseconds(), keyVaultKey.Name)
+		properties := getStatusProperty(keyVaultKey.Name, keyVaultKey.Version, time.Now().Format(time.RFC3339), isEnabled)
+		keysStatus = append(keysStatus, properties)
+	}
+
+	return keysMap, getStatusMap(keysStatus, types.KeysStatus), nil
+}
+
+func (s *akvKMProvider) IsRefreshable() bool {
+	return true
+}
+
+// azure keyvault provider certificate/key status is a map from "certificates" key or "keys" key to an array of key management provider status
+func getStatusMap(statusMap []map[string]string, contentType string) keymanagementprovider.KeyManagementProviderStatus {
 	status := keymanagementprovider.KeyManagementProviderStatus{}
-	status[types.CertificatesStatus] = certsStatus
+	status[contentType] = statusMap
 	return status
 }
 
-// return a certificate status object that consist of the cert name, version and last refreshed time
-func getCertStatusProperty(certificateName, version, lastRefreshed string) map[string]string {
-	certProperty := map[string]string{}
-	certProperty[types.CertificateName] = certificateName
-	certProperty[types.CertificateVersion] = version
-	certProperty[types.CertificateLastRefreshed] = lastRefreshed
-	return certProperty
+// return a status object that consist of the cert/key name, version, enabled and last refreshed time
+func getStatusProperty(name, version, lastRefreshed string, enabled bool) map[string]string {
+	properties := map[string]string{}
+	properties[types.StatusName] = name
+	properties[types.StatusVersion] = version
+	properties[types.StatusEnabled] = strconv.FormatBool(enabled)
+	properties[types.StatusLastRefreshed] = lastRefreshed
+	return properties
 }
 
-// formatKeyVaultCertificate formats the fields in KeyVaultCertificate
-func formatKeyVaultCertificate(object *types.KeyVaultCertificate) {
-	if object == nil {
-		return
-	}
-	objectPtr := reflect.ValueOf(object)
-	objectValue := objectPtr.Elem()
+// initializeKvClient creates a new keyvault client for keys, secrets and certificates
+// TODO: credProvider in only added to params for testing purposes. Make sure it is handled properly in future
+func initializeKvClient(keyVaultURI, tenantID, clientID string, credProvider azcore.TokenCredential) (*azkeys.Client, *azsecrets.Client, *azcertificates.Client, error) {
+	// Trim any trailing slash from the endpoint
+	kvEndpoint := strings.TrimSuffix(keyVaultURI, "/")
 
-	for i := 0; i < objectValue.NumField(); i++ {
-		field := objectValue.Field(i)
-		if field.Type() != reflect.TypeOf("") {
-			continue
+	// If credProvider is nil, create the default credential
+	if credProvider == nil {
+		var err error
+		credProvider, err = azidentity.NewWorkloadIdentityCredential(&azidentity.WorkloadIdentityCredentialOptions{
+			ClientID: clientID,
+			TenantID: tenantID,
+		})
+		if err != nil {
+			return nil, nil, nil, re.ErrorCodeAuthDenied.WithDetail("failed to create workload identity credential").WithError(err)
 		}
-		str := field.Interface().(string)
-		str = strings.TrimSpace(str)
-		field.SetString(str)
 	}
-}
 
-// parseAzureEnvironment returns azure environment by name
-func parseAzureEnvironment(cloudName string) (*azure.Environment, error) {
-	var env azure.Environment
-	var err error
-	if cloudName == "" {
-		env = azure.PublicCloud
-	} else {
-		env, err = azure.EnvironmentFromName(cloudName)
-	}
-	return &env, err
-}
-
-func initializeKvClient(ctx context.Context, keyVaultEndpoint, tenantID, clientID string) (*kv.BaseClient, error) {
-	kvClient := kv.New()
-	kvEndpoint := strings.TrimSuffix(keyVaultEndpoint, "/")
-
-	err := kvClient.AddToUserAgent("ratify")
+	// create azkeys client
+	keyKVClient, err := azkeys.NewClient(kvEndpoint, credProvider, nil)
 	if err != nil {
-		return nil, re.ErrorCodeConfigInvalid.NewError(re.CertProvider, providerName, re.AKVLink, err, "failed to add user agent to keyvault client", re.PrintStackTrace)
+		return nil, nil, nil, re.ErrorCodeConfigInvalid.WithDetail("Failed to create keys Key Vault client").WithError(err)
 	}
 
-	kvClient.Authorizer, err = getAuthorizerForWorkloadIdentity(ctx, tenantID, clientID, kvEndpoint)
+	// create azsecrets client
+	secretKVClient, err := azsecrets.NewClient(kvEndpoint, credProvider, nil)
 	if err != nil {
-		return nil, re.ErrorCodeAuthDenied.NewError(re.CertProvider, providerName, re.AKVLink, err, "failed to get authorizer for keyvault client", re.PrintStackTrace)
+		return nil, nil, nil, re.ErrorCodeConfigInvalid.WithDetail("Failed to create secrets Key Vault client").WithError(err)
 	}
-	return &kvClient, nil
+
+	// create azcertificates client
+	certificateKVClient, err := azcertificates.NewClient(kvEndpoint, credProvider, nil)
+	if err != nil {
+		return nil, nil, nil, re.ErrorCodeConfigInvalid.WithDetail("Failed to create certificates Key Vault client").WithError(err)
+	}
+
+	return keyKVClient, secretKVClient, certificateKVClient, nil
 }
 
 // Parse the secret bundle and return an array of certificates
 // In a certificate chain scenario, all certificates from root to leaf will be returned
-func getCertsFromSecretBundle(ctx context.Context, secretBundle kv.SecretBundle, certName string) ([]*x509.Certificate, []map[string]string, error) {
+func getCertsFromSecretBundle(ctx context.Context, secretBundle azsecrets.SecretBundle, certName string, enabled bool) ([]*x509.Certificate, []map[string]string, error) {
 	if secretBundle.ContentType == nil || secretBundle.Value == nil || secretBundle.ID == nil {
-		return nil, nil, re.ErrorCodeCertInvalid.NewError(re.CertProvider, providerName, re.EmptyLink, nil, "found invalid secret bundle for certificate  %s, contentType, value, and id must not be nil", re.HideStackTrace)
+		return nil, nil, re.ErrorCodeCertInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, nil, "found invalid secret bundle for certificate  %s, contentType, value, and id must not be nil", re.HideStackTrace)
 	}
 
-	version := getObjectVersion(*secretBundle.ID)
+	version := getObjectVersion(string(*secretBundle.ID))
 
 	// This aligns with notation akv implementation
 	// akv plugin supports both PKCS12 and PEM. https://github.com/Azure/notation-azure-kv/blob/558e7345ef8318783530de6a7a0a8420b9214ba8/Notation.Plugin.AzureKeyVault/KeyVault/KeyVaultClient.cs#L192
 	if *secretBundle.ContentType != PKCS12ContentType &&
 		*secretBundle.ContentType != PEMContentType {
-		return nil, nil, re.ErrorCodeCertInvalid.NewError(re.CertProvider, providerName, re.EmptyLink, nil, fmt.Sprintf("certificate %s version %s, unsupported secret content type %s, supported type are %s and %s", certName, version, *secretBundle.ContentType, PKCS12ContentType, PEMContentType), re.HideStackTrace)
+		return nil, nil, re.ErrorCodeCertInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, nil, fmt.Sprintf("certificate %s version %s, unsupported secret content type %s, supported type are %s and %s", certName, version, *secretBundle.ContentType, PKCS12ContentType, PEMContentType), re.HideStackTrace)
 	}
 
 	results := []*x509.Certificate{}
@@ -241,12 +350,12 @@ func getCertsFromSecretBundle(ctx context.Context, secretBundle kv.SecretBundle,
 	if *secretBundle.ContentType == PKCS12ContentType {
 		p12, err := base64.StdEncoding.DecodeString(*secretBundle.Value)
 		if err != nil {
-			return nil, nil, re.ErrorCodeCertInvalid.NewError(re.CertProvider, providerName, re.EmptyLink, err, fmt.Sprintf("azure keyvault certificate provider: failed to decode PKCS12 Value. Certificate %s, version %s", certName, version), re.HideStackTrace)
+			return nil, nil, re.ErrorCodeCertInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, err, fmt.Sprintf("azure keyvault key management provider: failed to decode PKCS12 Value. Certificate %s, version %s", certName, version), re.HideStackTrace)
 		}
 
 		blocks, err := pkcs12.ToPEM(p12, "")
 		if err != nil {
-			return nil, nil, re.ErrorCodeCertInvalid.NewError(re.CertProvider, providerName, re.EmptyLink, err, fmt.Sprintf("azure keyvault certificate provider: failed to convert PKCS12 Value to PEM. Certificate %s, version %s", certName, version), re.HideStackTrace)
+			return nil, nil, re.ErrorCodeCertInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, err, fmt.Sprintf("azure keyvault key management provider: failed to convert PKCS12 Value to PEM. Certificate %s, version %s", certName, version), re.HideStackTrace)
 		}
 
 		var pemData []byte
@@ -261,30 +370,65 @@ func getCertsFromSecretBundle(ctx context.Context, secretBundle kv.SecretBundle,
 	for block != nil {
 		switch block.Type {
 		case "PRIVATE KEY":
-			logger.GetLogger(ctx, logOpt).Warnf("azure keyvault certificate provider: certificate %s, version %s private key skipped. Please see doc to learn how to create a new certificate in keyvault with non exportable keys. https://learn.microsoft.com/en-us/azure/key-vault/certificates/how-to-export-certificate?tabs=azure-cli#exportable-and-non-exportable-keys", certName, version)
+			logger.GetLogger(ctx, logOpt).Warnf("azure keyvault key management provider: certificate %s, version %s private key skipped. Please see doc to learn how to create a new certificate in keyvault with non exportable keys. https://learn.microsoft.com/en-us/azure/key-vault/certificates/how-to-export-certificate?tabs=azure-cli#exportable-and-non-exportable-keys", certName, version)
 		case "CERTIFICATE":
 			var pemData []byte
 			pemData = append(pemData, pem.EncodeToMemory(block)...)
 			decodedCerts, err := keymanagementprovider.DecodeCertificates(pemData)
 			if err != nil {
-				return nil, nil, re.ErrorCodeCertInvalid.NewError(re.CertProvider, providerName, re.EmptyLink, err, fmt.Sprintf("azure keyvault certificate provider: failed to decode Certificate %s, version %s", certName, version), re.HideStackTrace)
+				return nil, nil, re.ErrorCodeCertInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, err, fmt.Sprintf("azure keyvault key management provider: failed to decode Certificate %s, version %s", certName, version), re.HideStackTrace)
 			}
 			for _, cert := range decodedCerts {
 				results = append(results, cert)
-				certProperty := getCertStatusProperty(certName, version, lastRefreshed)
+				certProperty := getStatusProperty(certName, version, lastRefreshed, enabled)
 				certsStatus = append(certsStatus, certProperty)
 			}
 		default:
-			logger.GetLogger(ctx, logOpt).Warnf("certificate '%s', version '%s': azure keyvault certificate provider detected unknown block type %s", certName, version, block.Type)
+			logger.GetLogger(ctx, logOpt).Warnf("certificate '%s', version '%s': azure keyvault key management provider detected unknown block type %s", certName, version, block.Type)
 		}
 
 		block, rest = pem.Decode(rest)
 		if block == nil && len(rest) > 0 {
-			return nil, nil, re.ErrorCodeCertInvalid.NewError(re.CertProvider, providerName, re.EmptyLink, nil, fmt.Sprintf("certificate '%s', version '%s': azure keyvault certificate provider error, block is nil and remaining block to parse > 0", certName, version), re.HideStackTrace)
+			return nil, nil, re.ErrorCodeCertInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, nil, fmt.Sprintf("certificate '%s', version '%s': azure keyvault key management provider error, block is nil and remaining block to parse > 0", certName, version), re.HideStackTrace)
 		}
 	}
 	logger.GetLogger(ctx, logOpt).Debugf("azurekeyvault certprovider getCertsFromSecretBundle: %v certificates parsed, Certificate '%s', version '%s'", len(results), certName, version)
 	return results, certsStatus, nil
+}
+
+// Based on https://github.com/sigstore/sigstore/blob/8b208f7d608b80a7982b2a66358b8333b1eec542/pkg/signature/kms/azure/client.go#L258
+func getKeyFromKeyBundle(keyBundle azkeys.KeyBundle) (crypto.PublicKey, error) {
+	webKey := keyBundle.Key
+	if webKey == nil {
+		return nil, re.ErrorCodeKeyInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, nil, "found invalid key bundle, key must not be nil", re.HideStackTrace)
+	}
+
+	if webKey.Kty == nil {
+		return nil, re.ErrorCodeKeyInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, nil, "found invalid key bundle, keytype must not be nil", re.HideStackTrace)
+	}
+
+	keyType := *webKey.Kty
+	switch keyType {
+	case azkeys.JSONWebKeyTypeECHSM:
+		ecType := azkeys.JSONWebKeyTypeEC
+		webKey.Kty = &ecType
+	case azkeys.JSONWebKeyTypeRSAHSM:
+		rsaType := azkeys.JSONWebKeyTypeRSA
+		webKey.Kty = &rsaType
+	}
+
+	keyBytes, err := json.Marshal(webKey)
+	if err != nil {
+		return nil, re.ErrorCodeKeyInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, err, "failed to marshal key", re.HideStackTrace)
+	}
+
+	key := jose.JSONWebKey{}
+	err = key.UnmarshalJSON(keyBytes)
+	if err != nil {
+		return nil, re.ErrorCodeKeyInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, err, "failed to unmarshal key into JSON Web Key", re.HideStackTrace)
+	}
+
+	return key.Key, nil
 }
 
 // getObjectVersion parses the id to retrieve the version
@@ -297,25 +441,66 @@ func getObjectVersion(id string) string {
 	return splitID[len(splitID)-1]
 }
 
-// validate checks vaultURI, tenantID, clientID are set and all certificates have a name
-// removes all whitespace from key vault certificate fields
+func isSecretDisabledError(err error) bool {
+	// AzureError defines the structure of the error response from Azure Key Vault
+	// This structure is defined according to https://learn.microsoft.com/en-us/rest/api/keyvault/keys/get-keys/get-keys?view=rest-keyvault-keys-7.4&tabs=HTTP#error
+	type AzureError struct {
+		Error struct {
+			Code       string `json:"code"`
+			Message    string `json:"message"`
+			InnerError struct {
+				Code string `json:"code"`
+			} `json:"innererror"`
+		} `json:"error"`
+	}
+
+	// Parse err and make sure it is a secretDisabled error and return true
+	const ErrorCodeForbidden = "Forbidden"
+	const SecretDisabledCode = "SecretDisabled"
+	var httpErr *azcore.ResponseError
+	if errors.As(err, &httpErr) {
+		if httpErr.StatusCode != http.StatusForbidden {
+			return false
+		}
+
+		var azureError AzureError
+		errorResponseBody, readErr := io.ReadAll(httpErr.RawResponse.Body)
+		if readErr != nil {
+			return false
+		}
+		jsonErr := json.Unmarshal(errorResponseBody, &azureError)
+		if jsonErr == nil && azureError.Error.Code == ErrorCodeForbidden && azureError.Error.InnerError.Code == SecretDisabledCode {
+			return true
+		}
+	}
+
+	// Return false if it's not a secretDisabled error
+	return false
+}
+
+// validate checks vaultURI, tenantID, clientID are set and all certificates/keys have a name
 func (s *akvKMProvider) validate() error {
 	if s.vaultURI == "" {
-		return re.ErrorCodeConfigInvalid.NewError(re.CertProvider, providerName, re.EmptyLink, nil, "vaultURI is not set", re.HideStackTrace)
+		return re.ErrorCodeConfigInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, nil, "vaultURI is not set", re.HideStackTrace)
 	}
 	if s.tenantID == "" {
-		return re.ErrorCodeConfigInvalid.NewError(re.CertProvider, providerName, re.EmptyLink, nil, "tenantID is not set", re.HideStackTrace)
+		return re.ErrorCodeConfigInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, nil, "tenantID is not set", re.HideStackTrace)
 	}
 	if s.clientID == "" {
-		return re.ErrorCodeConfigInvalid.NewError(re.CertProvider, providerName, re.EmptyLink, nil, "clientID is not set", re.HideStackTrace)
+		return re.ErrorCodeConfigInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, nil, "clientID is not set", re.HideStackTrace)
 	}
 
 	// all certificates must have a name
 	for i := range s.certificates {
-		// remove whitespace from all fields in key vault cert
-		formatKeyVaultCertificate(&s.certificates[i])
 		if s.certificates[i].Name == "" {
-			return re.ErrorCodeConfigInvalid.NewError(re.CertProvider, providerName, re.EmptyLink, nil, fmt.Sprintf("certificate name is not set for certificate %d", i), re.HideStackTrace)
+			return re.ErrorCodeConfigInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, nil, fmt.Sprintf("name is not set for the %d th certificate", i+1), re.HideStackTrace)
+		}
+	}
+
+	// all keys must have a name
+	for i := range s.keys {
+		if s.keys[i].Name == "" {
+			return re.ErrorCodeConfigInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, nil, fmt.Sprintf("name is not set for the %d th key", i+1), re.HideStackTrace)
 		}
 	}
 

@@ -13,7 +13,7 @@ We'd like to redesign the `configPolicy` provider to enhance the Ratify while ad
 
 
 # Design Considerations
-The new policy provider should cover but not limited to address these issues: [#351](https://github.com/deislabs/ratify/issues/351), [#528](https://github.com/deislabs/ratify/issues/528), [#448](https://github.com/deislabs/ratify/issues/448), [35](https://github.com/deislabs/ratify/issues/35)
+The new policy provider should cover but not limited to address these issues: [#351](https://github.com/ratify-project/ratify/issues/351), [#528](https://github.com/ratify-project/ratify/issues/528), [#448](https://github.com/ratify-project/ratify/issues/448), [35](https://github.com/ratify-project/ratify/issues/35)
 
 ## Targets
 1. Avoid introducing breaking changes to existing interfaces.
@@ -245,7 +245,7 @@ spec:
         general_violation[{"result": result}] {
           subject_validation := remote_data.responses[_]
           failed_verify(subject_validation[1].nestedReports)
-          result := sprintf("Subject failed verification: %s", [subject_validation[0]])
+          result := sprintf("Failed to verify the artifact: %s", [subject_validation[0]])
         }
       libs:
         - |
@@ -309,7 +309,7 @@ spec:
         general_violation[{"result": result}] {
           subject_validation := remote_data.responses[_]
           failed_verify(subject_validation[1].nestedReports)
-          result := sprintf("Subject failed verification: %s", [subject_validation[0]])
+          result := sprintf("Failed to verify the artifact: %s", [subject_validation[0]])
         }
       libs:
         - |
@@ -367,7 +367,7 @@ spec:
         general_violation[{"result": result}] {
           subject_validation := remote_data.responses[_]
           failed_verify(subject_validate[1])
-          result := sprintf("Subject failed verification: %s", [subject_validation[0]])
+          result := sprintf("Failed to verify the artifact: %s", [subject_validation[0]])
         }
       libs:
         - |
@@ -466,7 +466,7 @@ spec:
         general_violation[{"result": result}] {
           subject_validation := remote_data.responses[_]
           failed_verify(subject_validate[1])
-          result := sprintf("Subject failed verification: %s", [subject_validation[0]])
+          result := sprintf("Failed to verify the artifact: %s", [subject_validation[0]])
         }
 
         # check if there is an invalid subject

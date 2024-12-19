@@ -22,22 +22,22 @@ import (
 	"testing"
 	"time"
 
-	ratifyerrors "github.com/deislabs/ratify/errors"
-	"github.com/deislabs/ratify/pkg/common"
-	e "github.com/deislabs/ratify/pkg/executor"
-	exConfig "github.com/deislabs/ratify/pkg/executor/config"
-	"github.com/deislabs/ratify/pkg/executor/types"
-	"github.com/deislabs/ratify/pkg/ocispecs"
-	"github.com/deislabs/ratify/pkg/policyprovider"
-	policyConfig "github.com/deislabs/ratify/pkg/policyprovider/configpolicy"
-	policyTypes "github.com/deislabs/ratify/pkg/policyprovider/types"
-	pt "github.com/deislabs/ratify/pkg/policyprovider/types"
-	"github.com/deislabs/ratify/pkg/referrerstore"
-	storeConfig "github.com/deislabs/ratify/pkg/referrerstore/config"
-	"github.com/deislabs/ratify/pkg/referrerstore/mocks"
-	"github.com/deislabs/ratify/pkg/verifier"
 	"github.com/opencontainers/go-digest"
 	oci "github.com/opencontainers/image-spec/specs-go/v1"
+	ratifyerrors "github.com/ratify-project/ratify/errors"
+	"github.com/ratify-project/ratify/pkg/common"
+	e "github.com/ratify-project/ratify/pkg/executor"
+	exConfig "github.com/ratify-project/ratify/pkg/executor/config"
+	"github.com/ratify-project/ratify/pkg/executor/types"
+	"github.com/ratify-project/ratify/pkg/ocispecs"
+	"github.com/ratify-project/ratify/pkg/policyprovider"
+	policyConfig "github.com/ratify-project/ratify/pkg/policyprovider/configpolicy"
+	policyTypes "github.com/ratify-project/ratify/pkg/policyprovider/types"
+	pt "github.com/ratify-project/ratify/pkg/policyprovider/types"
+	"github.com/ratify-project/ratify/pkg/referrerstore"
+	storeConfig "github.com/ratify-project/ratify/pkg/referrerstore/config"
+	"github.com/ratify-project/ratify/pkg/referrerstore/mocks"
+	"github.com/ratify-project/ratify/pkg/verifier"
 )
 
 const (
@@ -188,7 +188,7 @@ func TestVerifySubjectInternal_ResolveSubjectDescriptor_Success(t *testing.T) {
 		Subject: "localhost:5000/net-monitor:v1",
 	}
 
-	if _, err := executor.verifySubjectInternal(context.Background(), verifyParameters); !errors.Is(err, ratifyerrors.ErrorCodeReferrersNotFound.WithDetail("")) {
+	if _, err := executor.verifySubjectInternal(context.Background(), verifyParameters); !errors.Is(err, ratifyerrors.ErrorCodeNoVerifierReport.WithDetail("")) {
 		t.Fatalf("expected ErrReferrersNotFound actual %v", err)
 	}
 }
@@ -214,7 +214,7 @@ func TestVerifySubjectInternal_Verify_NoReferrers(t *testing.T) {
 		Subject: "localhost:5000/net-monitor:v1",
 	}
 
-	if _, err := ex.verifySubjectInternal(context.Background(), verifyParameters); !errors.Is(err, ratifyerrors.ErrorCodeReferrersNotFound.WithDetail("")) {
+	if _, err := ex.verifySubjectInternal(context.Background(), verifyParameters); !errors.Is(err, ratifyerrors.ErrorCodeNoVerifierReport.WithDetail("")) {
 		t.Fatalf("expected ErrReferrersNotFound actual %v", err)
 	}
 }
@@ -240,7 +240,7 @@ func TestVerifySubjectInternal_CanVerify_ExpectedResults(t *testing.T) {
 		CanVerifyFunc: func(at string) bool {
 			return at == testArtifactType1
 		},
-		VerifyResult: func(artifactType string) bool {
+		VerifyResult: func(_ string) bool {
 			return true
 		},
 	}
@@ -293,7 +293,7 @@ func TestVerifySubjectInternal_VerifyFailures_ExpectedResults(t *testing.T) {
 		},
 	}
 	ver := &TestVerifier{
-		CanVerifyFunc: func(at string) bool {
+		CanVerifyFunc: func(_ string) bool {
 			return true
 		},
 		VerifyResult: func(artifactType string) bool {
@@ -345,10 +345,10 @@ func TestVerifySubjectInternal_VerifySuccess_ExpectedResults(t *testing.T) {
 		},
 	}
 	ver := &TestVerifier{
-		CanVerifyFunc: func(at string) bool {
+		CanVerifyFunc: func(_ string) bool {
 			return true
 		},
-		VerifyResult: func(artifactType string) bool {
+		VerifyResult: func(_ string) bool {
 			return true
 		},
 	}
@@ -402,7 +402,7 @@ func TestVerifySubjectInternalWithDecision_MultipleArtifacts_ExpectedResults(t *
 		},
 	}
 	ver := &TestVerifier{
-		CanVerifyFunc: func(at string) bool {
+		CanVerifyFunc: func(_ string) bool {
 			return true
 		},
 		VerifyResult: func(artifactType string) bool {
@@ -460,7 +460,7 @@ func TestVerifySubjectInternal_NestedReferences_Expected(t *testing.T) {
 		CanVerifyFunc: func(at string) bool {
 			return at == mocks.SbomArtifactType
 		},
-		VerifyResult: func(artifactType string) bool {
+		VerifyResult: func(_ string) bool {
 			return true
 		},
 		nestedReferences: []string{"string-content-does-not-matter"},
@@ -470,7 +470,7 @@ func TestVerifySubjectInternal_NestedReferences_Expected(t *testing.T) {
 		CanVerifyFunc: func(at string) bool {
 			return at == mocks.SignatureArtifactType
 		},
-		VerifyResult: func(artifactType string) bool {
+		VerifyResult: func(_ string) bool {
 			return true
 		},
 	}
@@ -538,7 +538,7 @@ func TestVerifySubjectInternal_NoNestedReferences_Expected(t *testing.T) {
 		CanVerifyFunc: func(at string) bool {
 			return at == mocks.SbomArtifactType
 		},
-		VerifyResult: func(artifactType string) bool {
+		VerifyResult: func(_ string) bool {
 			return true
 		},
 	}
@@ -547,7 +547,7 @@ func TestVerifySubjectInternal_NoNestedReferences_Expected(t *testing.T) {
 		CanVerifyFunc: func(at string) bool {
 			return at == mocks.SignatureArtifactType
 		},
-		VerifyResult: func(artifactType string) bool {
+		VerifyResult: func(_ string) bool {
 			return true
 		},
 	}

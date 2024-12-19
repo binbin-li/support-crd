@@ -1,0 +1,78 @@
+name: scan_vulns
+on:
+  push:
+    paths-ignore:
+      - "docs/**"
+      - "library/**"
+      - "**.md"
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "library/**"
+      - "**.md"
+  schedule:
+    - cron: "30 8 * * 0" # early morning (08:30 UTC) every Sunday
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  govulncheck:
+    name: "Run govulncheck"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
+        with:
+          go-version: "1.22"
+          check-latest: true
+      - uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
+
+  scan_vulnerabilities:
+    name: "[Trivy] Scan for vulnerabilities"
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    env:
+      TRIVY_VERSION: 0.49.1
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Download trivy
+        run: |
+          pushd $(mktemp -d)
+          wget https://github.com/aquasecurity/trivy/releases/download/v${{ env.TRIVY_VERSION }}/trivy_${{ env.TRIVY_VERSION }}_Linux-64bit.tar.gz
+          tar zxvf trivy_${{ env.TRIVY_VERSION }}_Linux-64bit.tar.gz
+          echo "$(pwd)" >> $GITHUB_PATH
+      
+      - name: Restore Trivy cache
+        uses: ./.github/actions/restore_trivy_cache
+
+      - name: Run trivy on git repository
+        run: |
+          trivy fs --skip-db-update --format table --ignore-unfixed --scanners vuln .
+
+      - name: Build docker images
+        run: |
+          make e2e-build-local-ratify-image
+          make e2e-build-crd-image
+      - name: Run trivy on images for all severity
+        run: |
+          for img in "localbuild:test" "localbuildcrd:test"; do
+              trivy image --skip-db-update --ignore-unfixed --vuln-type="os,library" "${img}"
+          done
+      - name: Run trivy on images and exit on HIGH/CRITICAL severity
+        run: |
+          for img in "localbuild:test" "localbuildcrd:test"; do
+              trivy image --skip-db-update --ignore-unfixed --exit-code 1 --severity HIGH,CRITICAL --vuln-type="os,library" "${img}"
+          done

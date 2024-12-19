@@ -2,6 +2,15 @@
 
 Welcome! We are very happy to accept community contributions to Ratify, whether those are [Pull Requests](#pull-requests), [Plugins](#plugins), [Feature Suggestions](#feature-suggestions) or [Bug Reports](#bug-reports)! Please note that by participating in this project, you agree to abide by the [Code of Conduct](./CODE_OF_CONDUCT.md), as well as the terms of the [CLA](#cla).
 
+## Table of Contents
+- [Getting Started](#getting-started)
+- [Feature Areas](#feature-areas)
+- [Feature Enhancements](#feature-enhancements)
+- [Feature Suggestions](#feature-suggestions)
+- [Bug Reports](#bug-reports)
+- [Developing](#developing)
+- [Pull Requests](#pull-requests)
+
 ## Getting Started
 
 * If you don't already have it, you will need [go](https://golang.org/dl/) v1.16+ installed locally to build the project.
@@ -10,22 +19,51 @@ Welcome! We are very happy to accept community contributions to Ratify, whether 
 * Checkout the repo locally with `git clone git@github.com:{your_username}/ratify.git`.
 * Build the Ratify CLI with `go build -o ./bin/ratify ./cmd/ratify` or if on Mac/Linux/WSL `make build-cli`.
 
+## Feature Enhancements
+For non-trivial enhancements or bug fixes, please start by raising a document PR. You can refer to the example [here](https://github.com/ratify-project/ratify/blame/dev/docs/proposals/Release-Supply-Chain-Metadata.md).
+Major user experience updates should be documented in [/doc/proposals](https://github.com/ratify-project/ratify/tree/dev/docs/proposals). Changes to technical implementation should be added to [/doc/design](https://github.com/ratify-project/ratify/tree/dev/docs/design).  
+
+Consider adding the following section where applicable:
+- Proposed changes
+- Proposed feature flag
+- Impacted code paths
+- Required test coverage
+- Backward compatibility
+- Performance impact
+- Security consideration
+- Open questions
+  
+This approach ensures that the changes are well-documented and reviewed before implementation.
+
 ## Pull Requests
 
-If you'd like to start contributing to Ratify, you can search for issues tagged as "good first issue" [here](https://github.com/deislabs/ratify/labels/good%20first%20issue).
+If you'd like to start contributing to Ratify, you can search for issues tagged as "good first issue" [here](https://github.com/ratify-project/ratify/labels/good%20first%20issue).
 
-We use the `staging` branch as the our default branch. All ratify release are cut from the main branch. A sample PR process is outlined below:
-1. Fork this repo and create your dev branch from default `staging` branch.
-2. Create a PR against default branch
-3. Maintainer approval and e2e test validation is required for completing the PR.
-4. On PR complete, the `push` event will trigger an automated PR targeting the `main` branch where we run a full suite validation including cloud specific tests.
+We use the `dev` branch as the our default branch. PRs passing the basic set of validation can be merged to the `dev` branch, we then run the full suite of validation including cloud specific tests on `dev` before changes can be merged into `main`. All ratify release are cut from the `main` branch. A sample PR process is outlined below:
+1. Fork this repo and create your dev branch from default `dev` branch.
+2. Create a PR against default branch.
+3. Add new unit test and [e2e test](https://github.com/ratify-project/ratify/tree/dev/test/bats) where approriate.
+4. Maintainer approval and e2e test validation is required for completing the PR.
+5. On PR complete, the `push` event will trigger an automated PR targeting the `main` branch where we run a full suite validation including cloud specific tests.
 6. Manual merge is required to complete the PR. (**Please keep individual commits to maintain commit history**)
 
 If the PR contains a regression that could not pass the full validation, please revert the change to unblock others:
-1. Create a new dev branch based off staging.
-2. Open a revert PR against staging.
-3. Follow the same process to get this PR gets merged into staging.
+1. Create a new dev branch based off `dev`.
+2. Open a revert PR against `dev`.
+3. Follow the same process to get this PR gets merged into `dev`.
 4. Work on the fix and follow the above PR process.
+
+### Commit
+
+You should follow [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) to write commit message. As the Ratify Project repositories enforces the [DCO (Developer Certificate of Origin)](https://github.com/apps/dco) on Pull Requests, contributors are required to sign off that they adhere to those requirements by adding a `Signed-off-by` line to the commit messages. Git has even provided a `-s` command line option to append that automatically to your commit messages, please use it when you commit your changes. 
+
+The Ratify Project repositories require signed commits, please refer to [SSH commit signature verification](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification#ssh-commit-signature-verification) on signing commits using SSH as it is easy to set up. You can find other methods to sign commits in the document [commit signature verification](https://docs.github.com/en/authentication/managing-commit-signature-verification/about-commit-signature-verification). Git has provided a `-S` flag to create a signed commit.
+
+An example of `git commit` command:
+
+```shell
+git commit -s -S -m <commit_message>
+```
 
 ## Developing
 
@@ -53,8 +91,11 @@ The Ratify project is composed of the following main components:
 ### Debugging Ratify with VS Code
 
 Ratify can run through cli command or run as a http server. Create a [launch.json](https://code.visualstudio.com/docs/editor/debugging#_launch-configurations) file in the .vscode directory, then hit F5 to debug. Note the first debug session may take a few minutes to load, subsequent session will be much faster.
+A demo of VS Code debugging experience is available from ratify community meeting [recording](https://youtu.be/o5ufkZRDiIg?si=mzSw5XHPxBJmgq8i&t=2793) min 46:33. 
 
-Sample json for cli:
+Here is a sample json for cli. Note that for the following sample json to successfully work, you need to make sure that `verificationCerts` attribute of the verifier in your config file points to the notation verifier's certificate file. In order to do that, you can download the cert file with the following command:
+`curl -sSLO https://raw.githubusercontent.com/deislabs/ratify/main/test/testdata/notation.crt`, 
+and then modify the config file by setting the `verificationCerts` attribute in the notation verifier to the downloaded cert file path.
 
 ```json
 {
@@ -65,7 +106,11 @@ Sample json for cli:
       "request": "launch",
       "mode": "debug",
       "program": "${workspaceFolder}/cmd/ratify",
-      "args": ["verify", "-s", "ratify.azurecr.io/testimage@sha256:9515b691095051d68b4409a30c4819c98bd6f4355d5993a7487687cdc6d47cc3"]
+      "args": [
+                "verify", 
+                "-s", "ghcr.io/deislabs/ratify/notary-image:signed", 
+                "-c", "${workspaceFolder}/test/bats/tests/config/config_cli.json"
+      ]
     }]
 }
 ```
@@ -148,7 +193,7 @@ Sample JSON stdin
 
 Press `Ctrl+D` to send EOF character to terminate the stdin input. (Note: you may have to press `Ctrl+D` twice)
 
-View more plugin debugging information [here](https://github.com/deislabs/ratify-verifier-plugin#debugging-in-vs-code)
+View more plugin debugging information [here](https://github.com/ratify-project/ratify-verifier-plugin#debugging-in-vs-code)
 
 ### Test local changes in the k8s cluster scenario
 
@@ -161,14 +206,14 @@ Follow the steps below to build and deploy a Ratify image with your private chan
 export REGISTRY=yourregistry
 docker buildx create --use
 
-docker buildx build -f httpserver/Dockerfile --platform linux/amd64 --build-arg build_sbom=true --build-arg build_licensechecker=true --build-arg build_schemavalidator=true --build-arg build_vulnerabilityreport=true -t ${REGISTRY}/deislabs/ratify:yourtag .
-docker build --progress=plain --build-arg KUBE_VERSION="1.27.7" --build-arg TARGETOS="linux" --build-arg TARGETARCH="amd64" -f crd.Dockerfile -t ${REGISTRY}/localbuildcrd:yourtag ./charts/ratify/crds
+docker buildx build -f httpserver/Dockerfile --platform linux/amd64 --build-arg build_sbom=true --build-arg build_licensechecker=true --build-arg build_schemavalidator=true --build-arg build_vulnerabilityreport=true -t ${REGISTRY}/ratify-project/ratify:yourtag .
+docker build --progress=plain --build-arg KUBE_VERSION="1.30.6" --build-arg TARGETOS="linux" --build-arg TARGETARCH="amd64" -f crd.Dockerfile -t ${REGISTRY}/localbuildcrd:yourtag ./charts/ratify/crds
 ```
 
 #### [Authenticate](https://docs.docker.com/engine/reference/commandline/login/#usage) with your registry,  and push the newly built image
 
 ```bash
-docker push ${REGISTRY}/deislabs/ratify:yourtag
+docker push ${REGISTRY}/ratify-project/ratify:yourtag
 docker push ${REGISTRY}/localbuildcrd:yourtag
 ```
 
@@ -196,16 +241,16 @@ Development charts + images are published weekly and latest versions are tagged 
 
 Deploy to cluster:
 ```bash
-helmfile sync -f git::https://github.com/deislabs/ratify.git@dev.helmfile.yaml
+helmfile sync -f git::https://github.com/ratify-project/ratify.git@dev.helmfile.yaml
 ```
 
 ### Deploy from local helm chart
 
-#### Update [values.yaml](https://github.com/deislabs/ratify/blob/main/charts/ratify/values.yaml) to pull from your registry, when reusing image tag, setting pull policy to "Always" ensures we are pull the new changes
+#### Update [values.yaml](https://github.com/ratify-project/ratify/blob/main/charts/ratify/values.yaml) to pull from your registry, when reusing image tag, setting pull policy to "Always" ensures we are pull the new changes
 
 ```json
 image:
-  repository: yourregistry/deislabs/ratify
+  repository: yourregistry/ratify-project/ratify
   tag: yourtag
   pullPolicy: Always
 ```
@@ -269,19 +314,25 @@ Gatekeeper requires TLS for external data provider interactions. As such ratify 
     helm install ratify \
       ./charts/ratify --atomic \
       --namespace gatekeeper-system \
-      --set-file notationCert=./test/testdata/notation.crt \
+      --set logger.level=debug \
+      --set-file notationCerts[0]=./test/testdata/notation.crt \
       --set-file provider.tls.crt=./tls/certs/tls.crt \
       --set-file provider.tls.key=./tls/certs/tls.key \
-      --set-file provider.tls.cabundle=./tls/certs/ca.crt
+      --set provider.tls.cabundle="$(cat ./tls/certs/ca.crt | base64 | tr -d '\n\r')" \
+      --set-file provider.tls.caCert=./tls/certs/ca.crt \
+      --set-file provider.tls.caKey=./tls/certs/ca.key
     ```
+Update the `KubernetesLocalProcessConfig.yaml` with updated directory/file paths:
+- In the file, set the `<INSERT WORKLOAD IDENTITY TOKEN LOCAL PATH>` to an absolute directory accessible on local environment. This is the directory where Bridge to K8s will download the Azure Workload Identity JWT token. 
+- In the file, set the `<INSERT CLIENT CA CERT LOCAL PATH>` to an absolute directory accessible on local environment. This is the directory where Bridge to K8s will download the `client-ca-cert` volume (Gatekeeper's `ca.crt`). 
 
 Configure Bridge to Kubernetes (Comprehensive guide [here](https://learn.microsoft.com/en-us/visualstudio/bridge/bridge-to-kubernetes-vs-code))
 1. Open the `Command Palette` in VSCode `CTRL-SHIFT-P`
-1. Select `Bridge to Kubernetes: Configure`
-1. Select `Ratify` from the list as the service to redirect to
-1. Set port to be 6001
-1. Select `Serve w/ CRD manager and TLS enabled` as the launch config
-1. Select 'No' for request isolation
+2. Select `Bridge to Kubernetes: Configure`
+3. Select `Ratify` from the list as the service to redirect to
+4. Set port to be 6001
+5. Select `Serve w/ CRD manager and TLS enabled` as the launch config
+6. Select 'No' for request isolation
 
 This should automatically append a new Bridge to Kubernetes configuration to the launch.json file and add a new tasks.json file. 
 
@@ -308,25 +359,11 @@ If you'd like to contribute to the collection of plugins:
 
 ## Feature Suggestions
 
-* Please first search [Open Ratify Issues](https://github.com/deislabs/ratify/issues) before opening an issue to check whether your feature has already been suggested. If it has, feel free to add your own comments to the existing issue.
+* Please first search [Open Ratify Issues](https://github.com/ratify-project/ratify/issues) before opening an issue to check whether your feature has already been suggested. If it has, feel free to add your own comments to the existing issue.
 * Ensure you have included a "What?" - what your feature entails, being as specific as possible, and giving mocked-up syntax examples where possible.
 * Ensure you have included a "Why?" - what the benefit of including this feature will be.
 
 ## Bug Reports
 
-* Please first search [Open Ratify Issues](https://github.com/deislabs/ratify/issues) before opening an issue, to see if it has already been reported.
+* Please first search [Open Ratify Issues](https://github.com/ratify-project/ratify/issues) before opening an issue, to see if it has already been reported.
 * Try to be as specific as possible, including the version of the Ratify CLI used to reproduce the issue, and any example arguments needed to reproduce it.
-
-## CLA
-
-This project welcomes contributions and suggestions.  Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit <https://cla.opensource.microsoft.com>.
-
-When you submit a pull request, a CLA bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
-
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.

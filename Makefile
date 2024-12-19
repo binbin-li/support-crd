@@ -15,7 +15,7 @@ BINARY_NAME		= ratify
 INSTALL_DIR		= ~/.ratify
 CERT_DIR        = ${GITHUB_WORKSPACE}/tls/certs
 
-GO_PKG			= github.com/deislabs/ratify
+GO_PKG			= github.com/ratify-project/ratify
 GIT_COMMIT_HASH = $(shell git rev-parse HEAD)
 GIT_TREE_STATE 	= $(shell test -n "`git status --porcelain`" && echo "modified" || echo "unmodified")
 GIT_TAG     	= $(shell git describe --tags --abbrev=0 --exact-match 2>/dev/null)
@@ -25,42 +25,49 @@ LDFLAGS += -X $(GO_PKG)/internal/version.GitCommitHash=$(GIT_COMMIT_HASH)
 LDFLAGS += -X $(GO_PKG)/internal/version.GitTreeState=$(GIT_TREE_STATE)
 LDFLAGS += -X $(GO_PKG)/internal/version.GitTag=$(GIT_TAG)
 
-KIND_VERSION ?= 0.22.0
-KUBERNETES_VERSION ?= 1.27.7
-KIND_KUBERNETES_VERSION ?= 1.27.3
-GATEKEEPER_VERSION ?= 3.15.0
-DAPR_VERSION ?= 1.12.5
-COSIGN_VERSION ?= 2.2.3
-NOTATION_VERSION ?= 1.1.0
-ORAS_VERSION ?= 1.1.0
+KIND_VERSION ?= 0.25.0
+KUBERNETES_VERSION ?= 1.30.6
+KIND_KUBERNETES_VERSION ?= 1.30.6
+GATEKEEPER_VERSION ?= 3.18.0
+DAPR_VERSION ?= 1.14.4
+COSIGN_VERSION ?= 2.4.1
+NOTATION_VERSION ?= 1.2.0
+ORAS_VERSION ?= 1.2.1
 
-HELM_VERSION ?= 3.14.2
-HELMFILE_VERSION ?= 0.162.0
+HELM_VERSION ?= 3.16.3
+HELMFILE_VERSION ?= 0.169.2
 BATS_BASE_TESTS_FILE ?= test/bats/base-test.bats
 BATS_PLUGIN_TESTS_FILE ?= test/bats/plugin-test.bats
 BATS_CLI_TESTS_FILE ?= test/bats/cli-test.bats
 BATS_QUICKSTART_TESTS_FILE ?= test/bats/quickstart-test.bats
 BATS_HA_TESTS_FILE ?= test/bats/high-availability.bats
-BATS_VERSION ?= 1.10.0
-SYFT_VERSION ?= v1.0.0
-YQ_VERSION ?= v4.42.1
+BATS_VERSION ?= 1.11.1
+SYFT_VERSION ?= v1.18.0
+YQ_VERSION ?= v4.44.6
 YQ_BINARY ?= yq_linux_amd64
 ALPINE_IMAGE ?= alpine@sha256:93d5a28ff72d288d69b5997b8ba47396d2cbb62a72b5d87cd3351094b5d578a0
 ALPINE_IMAGE_VULNERABLE ?= alpine@sha256:25fad2a32ad1f6f510e528448ae1ec69a28ef81916a004d3629874104f8a7f70
-REDIS_IMAGE_TAG ?= 7.0-debian-11
+REDIS_IMAGE_TAG ?= 7.4-debian-12
 CERT_ROTATION_ENABLED ?= false
 REGO_POLICY_ENABLED ?= false
-SBOM_TOOL_VERSION ?=v2.2.3
-TRIVY_VERSION ?= 0.49.1
+SBOM_TOOL_VERSION ?=v2.2.9
+TRIVY_VERSION ?= 0.58.0
 
 GATEKEEPER_NAMESPACE = gatekeeper-system
 RATIFY_NAME = ratify
+
+TIMESTAMP_URL = http://timestamp.digicert.com
 
 # Local Registry Setup
 LOCAL_REGISTRY_IMAGE ?= ghcr.io/project-zot/zot-linux-amd64:v2.0.2
 TEST_REGISTRY = localhost:5000
 TEST_REGISTRY_USERNAME = test_user
 TEST_REGISTRY_PASSWORD = test_pw
+
+# Azure Key Vault Setup
+KEYVAULT_NAME ?= ratify-akv
+KEYVAULT_KEY_NAME ?= test-key
+AZURE_SP_OBJECT_ID ?= 00000000-0000-0000-0000-000000000000
 
 all: build test
 
@@ -70,17 +77,17 @@ build: build-cli build-plugins
 .PHONY: build-cli
 build-cli: fmt vet
 	go build --ldflags="$(LDFLAGS)" -cover \
-	-coverpkg=github.com/deislabs/ratify/pkg/...,github.com/deislabs/ratify/config/...,github.com/deislabs/ratify/cmd/... \
+	-coverpkg=github.com/ratify-project/ratify/pkg/...,github.com/ratify-project/ratify/config/...,github.com/ratify-project/ratify/cmd/... \
 	-o ./bin/${BINARY_NAME} ./cmd/${BINARY_NAME}
 
 .PHONY: build-plugins
 build-plugins:
-	go build -cover -coverpkg=github.com/deislabs/ratify/plugins/verifier/licensechecker/... -o ./bin/plugins/ ./plugins/verifier/licensechecker
-	go build -cover -coverpkg=github.com/deislabs/ratify/plugins/verifier/sample/... -o ./bin/plugins/ ./plugins/verifier/sample
-	go build -cover -coverpkg=github.com/deislabs/ratify/plugins/referrerstore/sample/... -o ./bin/plugins/referrerstore/ ./plugins/referrerstore/sample
-	go build -cover -coverpkg=github.com/deislabs/ratify/plugins/verifier/sbom/... -o ./bin/plugins/ ./plugins/verifier/sbom
-	go build -cover -coverpkg=github.com/deislabs/ratify/plugins/verifier/schemavalidator/... -o ./bin/plugins/ ./plugins/verifier/schemavalidator
-	go build -cover -coverpkg=github.com/deislabs/ratify/plugins/verifier/vulnerabilityreport/... -o ./bin/plugins/ ./plugins/verifier/vulnerabilityreport
+	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/licensechecker/... -o ./bin/plugins/ ./plugins/verifier/licensechecker
+	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/sample/... -o ./bin/plugins/ ./plugins/verifier/sample
+	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/referrerstore/sample/... -o ./bin/plugins/referrerstore/ ./plugins/referrerstore/sample
+	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/sbom/... -o ./bin/plugins/ ./plugins/verifier/sbom
+	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/schemavalidator/... -o ./bin/plugins/ ./plugins/verifier/schemavalidator
+	go build -cover -coverpkg=github.com/ratify-project/ratify/plugins/verifier/vulnerabilityreport/... -o ./bin/plugins/ ./plugins/verifier/vulnerabilityreport
 
 .PHONY: install
 install:
@@ -93,6 +100,7 @@ install:
 ratify-config:
 	cp ./test/bats/tests/config/* ${INSTALL_DIR}
 	cp ./test/bats/tests/certificates/wabbit-networks.io.crt ${INSTALL_DIR}/ratify-certs/notation/wabbit-networks.io.crt
+	cp ./test/bats/tests/certificates/tsarootca.cer ${INSTALL_DIR}/ratify-certs/notation/tsarootca.cer
 	cp ./test/bats/tests/certificates/cosign.pub ${INSTALL_DIR}/ratify-certs/cosign/cosign.pub
 	cp -r ./test/bats/tests/schemas/ ${INSTALL_DIR}
 	
@@ -121,17 +129,17 @@ delete-ratify:
 
 .PHONY: deploy-demo-constraints
 deploy-demo-constraints:
-	kubectl apply -f ./library/default/template.yaml
-	kubectl apply -f ./library/default/samples/constraint.yaml
+	kubectl apply -f ./library/multi-tenancy-validation/template.yaml
+	kubectl apply -f ./library/multi-tenancy-validation/samples/constraint.yaml
 
 .PHONY: delete-demo-constraints
 delete-demo-constraints:
-	kubectl delete -f ./library/default/template.yaml
-	kubectl delete -f ./library/default/samples/constraint.yaml
+	kubectl delete -f ./library/multi-tenancy-validation/template.yaml
+	kubectl delete -f ./library/multi-tenancy-validation/samples/constraint.yaml
 
 .PHONY: deploy-rego-policy
 deploy-rego-policy:
-	kubectl apply -f ./config/samples/policy/config_v1beta1_policy_rego.yaml
+	kubectl replace -f ./config/samples/clustered/policy/config_v1beta1_policy_rego.yaml
 
 .PHONY: deploy-gatekeeper
 deploy-gatekeeper:
@@ -152,7 +160,7 @@ test-e2e: generate-rotation-certs
 	EXPIRING_CERT_DIR=.staging/rotation/expiring-certs CERT_DIR=.staging/rotation GATEKEEPER_VERSION=${GATEKEEPER_VERSION} bats -t ${BATS_PLUGIN_TESTS_FILE}
 
 .PHONY: test-e2e-cli
-test-e2e-cli: e2e-dependencies e2e-create-local-registry e2e-notation-setup e2e-notation-leaf-cert-setup e2e-cosign-setup e2e-licensechecker-setup e2e-sbom-setup e2e-schemavalidator-setup e2e-vulnerabilityreport-setup
+test-e2e-cli: e2e-dependencies e2e-create-local-registry e2e-notation-setup e2e-notation-leaf-cert-setup e2e-cosign-setup e2e-licensechecker-setup e2e-sbom-setup e2e-trivy-setup e2e-schemavalidator-setup e2e-vulnerabilityreport-setup
 	rm ${GOCOVERDIR} -rf
 	mkdir ${GOCOVERDIR} -p
 	RATIFY_DIR=${INSTALL_DIR} TEST_REGISTRY=${TEST_REGISTRY} ${GITHUB_WORKSPACE}/bin/bats -t ${BATS_CLI_TESTS_FILE}
@@ -194,7 +202,7 @@ e2e-dependencies:
 	# Download and install kind
 	curl -L https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/kind-linux-amd64 --output ${GITHUB_WORKSPACE}/bin/kind && chmod +x ${GITHUB_WORKSPACE}/bin/kind
 	# Download and install kubectl
-	curl -L https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl --output ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
+	curl -L https://dl.k8s.io/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl --output ${GITHUB_WORKSPACE}/bin/kubectl && chmod +x ${GITHUB_WORKSPACE}/bin/kubectl
 	# Download and install bats
 	curl -sSLO https://github.com/bats-core/bats-core/archive/v${BATS_VERSION}.tar.gz && tar -zxvf v${BATS_VERSION}.tar.gz && bash bats-core-${BATS_VERSION}/install.sh ${GITHUB_WORKSPACE}
 	# Download and install jq
@@ -262,6 +270,7 @@ e2e-helmfile-install:
 	cd .staging/helmfilebin && tar -xvf helmfilebin.tar.gz
     
 e2e-docker-credential-store-setup:
+	sudo apt-get install pass
 	rm -rf .staging/pass
 	mkdir -p .staging/pass
 	cd .staging/pass && git clone https://github.com/docker/docker-credential-helpers.git
@@ -290,10 +299,16 @@ e2e-notation-setup:
 	${GITHUB_WORKSPACE}/bin/oras cp --from-oci-layout .staging/notation/notation.tar:v0 ${TEST_REGISTRY}/notation:unsigned
 	rm .staging/notation/notation.tar
 
+	printf 'FROM ${ALPINE_IMAGE}\nCMD ["echo", "notation tsa signed image"]' > .staging/notation/Dockerfile
+	docker buildx create --use
+	docker buildx build --output type=oci,dest=.staging/notation/notation.tar -t notation:v0 .staging/notation
+	${GITHUB_WORKSPACE}/bin/oras cp --from-oci-layout .staging/notation/notation.tar:v0 ${TEST_REGISTRY}/notation:tsa
+	rm .staging/notation/notation.tar
+	
 	rm -rf ~/.config/notation
 	.staging/notation/notation cert generate-test --default "ratify-bats-test"
-
 	NOTATION_EXPERIMENTAL=1 .staging/notation/notation sign --allow-referrers-api -u ${TEST_REGISTRY_USERNAME} -p ${TEST_REGISTRY_PASSWORD} ${TEST_REGISTRY}/notation@`${GITHUB_WORKSPACE}/bin/oras manifest fetch ${TEST_REGISTRY}/notation:signed --descriptor | jq .digest | xargs`
+	NOTATION_EXPERIMENTAL=1 .staging/notation/notation sign --timestamp-url ${TIMESTAMP_URL} --timestamp-root-cert ./test/bats/tests/certificates/tsarootca.cer --allow-referrers-api -u ${TEST_REGISTRY_USERNAME} -p ${TEST_REGISTRY_PASSWORD} ${TEST_REGISTRY}/notation@`${GITHUB_WORKSPACE}/bin/oras manifest fetch ${TEST_REGISTRY}/notation:tsa --descriptor | jq .digest | xargs`
 	NOTATION_EXPERIMENTAL=1 .staging/notation/notation sign --allow-referrers-api -u ${TEST_REGISTRY_USERNAME} -p ${TEST_REGISTRY_PASSWORD} ${TEST_REGISTRY}/all@`${GITHUB_WORKSPACE}/bin/oras manifest fetch ${TEST_REGISTRY}/all:v0 --descriptor | jq .digest | xargs`
 
 e2e-notation-leaf-cert-setup:
@@ -339,6 +354,32 @@ e2e-cosign-setup:
 	./cosign-linux-amd64 generate-key-pair && \
 	./cosign-linux-amd64 sign --allow-insecure-registry --allow-http-registry --tlog-upload=false --key cosign.key ${TEST_REGISTRY}/cosign@`${GITHUB_WORKSPACE}/bin/oras manifest fetch ${TEST_REGISTRY}/cosign:signed-key --descriptor | jq .digest | xargs` && \
 	./cosign-linux-amd64 sign --allow-insecure-registry --allow-http-registry --tlog-upload=false --key cosign.key ${TEST_REGISTRY}/all@`${GITHUB_WORKSPACE}/bin/oras manifest fetch ${TEST_REGISTRY}/all:v0 --descriptor | jq .digest | xargs`
+
+e2e-cosign-akv-setup:
+	rm -rf .staging/cosign
+	mkdir -p .staging/cosign
+	curl -sSLO https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-amd64
+	mv cosign-linux-amd64 .staging/cosign
+	chmod +x .staging/cosign/cosign-linux-amd64
+
+	# image signed with a key from azure key vault
+	printf 'FROM ${ALPINE_IMAGE}\nCMD ["echo", "cosign signed akv image"]' > .staging/cosign/Dockerfile
+	docker buildx create --use
+	docker buildx build --output type=oci,dest=.staging/cosign/cosign.tar -t cosign:v0 .staging/cosign
+	${GITHUB_WORKSPACE}/bin/oras cp --from-oci-layout .staging/cosign/cosign.tar:v0 ${TEST_REGISTRY}/cosign:signed-key
+	rm .staging/cosign/cosign.tar
+
+	printf 'FROM ${ALPINE_IMAGE}\nCMD ["echo", "cosign unsigned image"]' > .staging/cosign/Dockerfile
+	docker buildx create --use
+	docker buildx build --output type=oci,dest=.staging/cosign/cosign.tar -t cosign:v0 .staging/cosign
+	${GITHUB_WORKSPACE}/bin/oras cp --from-oci-layout .staging/cosign/cosign.tar:v0 ${TEST_REGISTRY}/cosign:unsigned
+	rm .staging/cosign/cosign.tar
+
+	export COSIGN_PASSWORD="test" && \
+	cd .staging/cosign && \
+	./cosign-linux-amd64 login ${TEST_REGISTRY} -u ${TEST_REGISTRY_USERNAME} -p ${TEST_REGISTRY_PASSWORD} && \
+	./cosign-linux-amd64 sign --allow-insecure-registry --allow-http-registry --tlog-upload=false --key azurekms://${KEYVAULT_NAME}.vault.azure.net/${KEYVAULT_KEY_NAME} ${TEST_REGISTRY}/cosign@`${GITHUB_WORKSPACE}/bin/oras manifest fetch ${TEST_REGISTRY}/cosign:signed-key --descriptor | jq .digest | xargs` && \
+	./cosign-linux-amd64 sign --allow-insecure-registry --allow-http-registry --tlog-upload=false --key azurekms://${KEYVAULT_NAME}.vault.azure.net/${KEYVAULT_KEY_NAME} ${TEST_REGISTRY}/all@`${GITHUB_WORKSPACE}/bin/oras manifest fetch ${TEST_REGISTRY}/all:v0 --descriptor | jq .digest | xargs`
 
 e2e-licensechecker-setup:
 	rm -rf .staging/licensechecker
@@ -419,13 +460,17 @@ e2e-sbom-setup:
 	NOTATION_EXPERIMENTAL=1 .staging/notation/notation sign -u ${TEST_REGISTRY_USERNAME} -p ${TEST_REGISTRY_PASSWORD} ${TEST_REGISTRY}/sbom@`${GITHUB_WORKSPACE}/bin/oras discover --distribution-spec v1.1-referrers-api -o json --artifact-type application/spdx+json ${TEST_REGISTRY}/sbom:v0 | jq -r ".manifests[0].digest"`
 	NOTATION_EXPERIMENTAL=1 .staging/notation/notation sign -u ${TEST_REGISTRY_USERNAME} -p ${TEST_REGISTRY_PASSWORD} ${TEST_REGISTRY}/all@`${GITHUB_WORKSPACE}/bin/oras discover --distribution-spec v1.1-referrers-api -o json --artifact-type application/spdx+json ${TEST_REGISTRY}/all:v0 | jq -r ".manifests[0].digest"` 
 
+e2e-trivy-setup:
+	rm -rf .staging/trivy
+	mkdir -p .staging/trivy
+
+	# Install Trivy
+	curl -L https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz --output .staging/trivy/trivy.tar.gz
+	tar -zxf .staging/trivy/trivy.tar.gz -C .staging/trivy
+
 e2e-schemavalidator-setup:
 	rm -rf .staging/schemavalidator
 	mkdir -p .staging/schemavalidator
-
-	# Install Trivy
-	curl -L https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz --output .staging/schemavalidator/trivy.tar.gz
-	tar -zxf .staging/schemavalidator/trivy.tar.gz -C .staging/schemavalidator
 
 	# Build/Push Images
 	printf 'FROM ${ALPINE_IMAGE}\nCMD ["echo", "schemavalidator image"]' > .staging/schemavalidator/Dockerfile
@@ -435,7 +480,7 @@ e2e-schemavalidator-setup:
 	rm .staging/schemavalidator/schemavalidator.tar
 
 	# Create/Attach Scan Results
-	.staging/schemavalidator/trivy image --format sarif --output .staging/schemavalidator/trivy-scan.sarif ${TEST_REGISTRY}/schemavalidator:v0
+	.staging/trivy/trivy image --skip-db-update --format sarif --output .staging/schemavalidator/trivy-scan.sarif ${TEST_REGISTRY}/schemavalidator:v0
 	${GITHUB_WORKSPACE}/bin/oras attach \
 		--artifact-type application/vnd.aquasecurity.trivy.report.sarif.v1 \
 		--distribution-spec v1.1-referrers-api \
@@ -451,10 +496,6 @@ e2e-vulnerabilityreport-setup:
 	rm -rf .staging/vulnerabilityreport
 	mkdir -p .staging/vulnerabilityreport
 
-	# Install Trivy
-	curl -L https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz --output .staging/vulnerabilityreport/trivy.tar.gz
-	tar -zxf .staging/vulnerabilityreport/trivy.tar.gz -C .staging/vulnerabilityreport
-
 	# Build/Push Image
 	printf 'FROM ${ALPINE_IMAGE_VULNERABLE}\nCMD ["echo", "vulnerabilityreport image"]' > .staging/vulnerabilityreport/Dockerfile
 	docker buildx create --use
@@ -463,7 +504,7 @@ e2e-vulnerabilityreport-setup:
 	rm .staging/vulnerabilityreport/vulnerabilityreport.tar
 
 	# Create/Attach Scan Result
-	.staging/vulnerabilityreport/trivy image --format sarif --output .staging/vulnerabilityreport/trivy-sarif.json ${TEST_REGISTRY}/vulnerabilityreport:v0
+	.staging/trivy/trivy image --skip-db-update --format sarif --output .staging/vulnerabilityreport/trivy-sarif.json ${TEST_REGISTRY}/vulnerabilityreport:v0
 	${GITHUB_WORKSPACE}/bin/oras attach \
 		--artifact-type application/sarif+json \
 		--distribution-spec v1.1-referrers-api \
@@ -484,48 +525,49 @@ e2e-inlinecert-setup:
 	.staging/notation/notation cert generate-test "alternate-cert"
 	NOTATION_EXPERIMENTAL=1 .staging/notation/notation sign -u ${TEST_REGISTRY_USERNAME} -p ${TEST_REGISTRY_PASSWORD} --key "alternate-cert" ${TEST_REGISTRY}/notation@`${GITHUB_WORKSPACE}/bin/oras manifest fetch ${TEST_REGISTRY}/notation:signed-alternate --descriptor | jq .digest | xargs`
 
-e2e-azure-setup: e2e-create-all-image e2e-notation-setup e2e-notation-leaf-cert-setup e2e-cosign-setup e2e-licensechecker-setup e2e-sbom-setup e2e-schemavalidator-setup
+e2e-azure-setup: e2e-create-all-image e2e-notation-setup e2e-notation-leaf-cert-setup e2e-cosign-akv-setup e2e-licensechecker-setup e2e-sbom-setup e2e-trivy-setup e2e-schemavalidator-setup
 
 e2e-deploy-gatekeeper: e2e-helm-install
 	./.staging/helm/linux-amd64/helm repo add gatekeeper https://open-policy-agent.github.io/gatekeeper/charts
-	if [ ${GATEKEEPER_VERSION} = "3.13.0" ]; then ./.staging/helm/linux-amd64/helm install gatekeeper/gatekeeper --version ${GATEKEEPER_VERSION} --name-template=gatekeeper --namespace ${GATEKEEPER_NAMESPACE} --create-namespace --set enableExternalData=true --set validatingWebhookTimeoutSeconds=5 --set mutatingWebhookTimeoutSeconds=2 --set auditInterval=0; fi
-	if [ ${GATEKEEPER_VERSION} = "3.13.0" ]; then kubectl -n ${GATEKEEPER_NAMESPACE} patch deployment gatekeeper-controller-manager --type=json -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--external-data-provider-response-cache-ttl=1s"}]' && sleep 60; fi
-	# Gatekeeper versions >= 3.14.0 need a special helm value to override the default external data response cache ttl to 10s
-	if [ ${GATEKEEPER_VERSION} != "3.13.0" ]; then ./.staging/helm/linux-amd64/helm install gatekeeper/gatekeeper --version ${GATEKEEPER_VERSION} --name-template=gatekeeper --namespace ${GATEKEEPER_NAMESPACE} --create-namespace --set enableExternalData=true --set validatingWebhookTimeoutSeconds=5 --set mutatingWebhookTimeoutSeconds=2 --set auditInterval=0 --set externaldataProviderResponseCacheTTL=1s; fi
+	./.staging/helm/linux-amd64/helm install gatekeeper/gatekeeper --version ${GATEKEEPER_VERSION} --name-template=gatekeeper --namespace ${GATEKEEPER_NAMESPACE} --create-namespace --set enableExternalData=true --set validatingWebhookTimeoutSeconds=5 --set mutatingWebhookTimeoutSeconds=2 --set auditInterval=0 --set externaldataProviderResponseCacheTTL=1s
 
 e2e-build-crd-image:
-	docker build --progress=plain --no-cache --build-arg KUBE_VERSION=${KUBERNETES_VERSION} --build-arg TARGETOS="linux" --build-arg TARGETARCH="amd64" -f crd.Dockerfile -t localbuildcrd:test ./charts/ratify/crds
+	docker build --progress=plain --no-cache --build-arg KUBE_VERSION=${KUBERNETES_VERSION} --build-arg TARGETOS="linux" --build-arg TARGETARCH="amd64" -f crd.Dockerfile -t localbuildcrd:test ./charts/ratify/crds	
+
+load-build-crd-image:
 	kind load docker-image --name kind localbuildcrd:test
 
-e2e-deploy-base-ratify: e2e-notation-setup e2e-notation-leaf-cert-setup e2e-inlinecert-setup e2e-build-crd-image
-	docker build --progress=plain --no-cache \
-	-f ./httpserver/Dockerfile \
-	-t baselocalbuild:test .
-	kind load docker-image --name kind baselocalbuild:test
-
+e2e-deploy-base-ratify: e2e-notation-setup e2e-notation-leaf-cert-setup e2e-cosign-setup e2e-inlinecert-setup e2e-build-crd-image load-build-crd-image e2e-build-local-ratify-base-image
 	printf "{\n\t\"auths\": {\n\t\t\"registry:5000\": {\n\t\t\t\"auth\": \"`echo "${TEST_REGISTRY_USERNAME}:${TEST_REGISTRY_PASSWORD}" | tr -d '\n' | base64 -i -w 0`\"\n\t\t}\n\t}\n}" > mount_config.json
 
 	./.staging/helm/linux-amd64/helm install ${RATIFY_NAME} \
-    ./charts/ratify --atomic --namespace ${GATEKEEPER_NAMESPACE} --create-namespace \
-	--set image.repository=baselocalbuild \
-	--set image.crdRepository=localbuildcrd \
-	--set image.tag=test \
-	--set gatekeeper.version=${GATEKEEPER_VERSION} \
-	--set featureFlags.RATIFY_CERT_ROTATION=${CERT_ROTATION_ENABLED} \
-	--set-file provider.tls.crt=${CERT_DIR}/server.crt \
-	--set-file provider.tls.key=${CERT_DIR}/server.key \
-	--set-file provider.tls.caCert=${CERT_DIR}/ca.crt \
-    --set-file provider.tls.caKey=${CERT_DIR}/ca.key \
-	--set provider.tls.cabundle="$(shell cat ${CERT_DIR}/ca.crt | base64 | tr -d '\n')" \
-	--set notationCerts[0]="$$(cat ~/.config/notation/localkeys/ratify-bats-test.crt)" \
-	--set oras.useHttp=true \
-	--set cosign.enabled=false \
-	--set-file dockerConfig="mount_config.json" \
-	--set logger.level=debug
+		./charts/ratify --atomic --namespace ${GATEKEEPER_NAMESPACE} --create-namespace \
+		--set image.repository=baselocalbuild \
+		--set image.crdRepository=localbuildcrd \
+		--set image.tag=test \
+		--set gatekeeper.version=${GATEKEEPER_VERSION} \
+		--set featureFlags.RATIFY_CERT_ROTATION=${CERT_ROTATION_ENABLED} \
+		--set-file provider.tls.crt=${CERT_DIR}/server.crt \
+		--set-file provider.tls.key=${CERT_DIR}/server.key \
+		--set-file provider.tls.caCert=${CERT_DIR}/ca.crt \
+		--set-file provider.tls.caKey=${CERT_DIR}/ca.key \
+		--set provider.tls.cabundle="$(shell cat ${CERT_DIR}/ca.crt | base64 | tr -d '\n')" \
+		--set notationCerts[0]="$$(cat ~/.config/notation/localkeys/ratify-bats-test.crt)" \
+		--set cosignKeys[0]="$$(cat .staging/cosign/cosign.pub)" \
+		--set cosign.key="$$(cat .staging/cosign/cosign.pub)" \
+		--set oras.useHttp=true \
+		--set-file dockerConfig="mount_config.json" \
+		--set logger.level=debug
 
 	rm mount_config.json
 
-e2e-deploy-ratify: e2e-notation-setup e2e-notation-leaf-cert-setup e2e-cosign-setup e2e-cosign-setup e2e-licensechecker-setup e2e-sbom-setup e2e-schemavalidator-setup e2e-vulnerabilityreport-setup e2e-inlinecert-setup e2e-build-crd-image e2e-build-local-ratify-image e2e-helm-deploy-ratify
+e2e-deploy-ratify: e2e-notation-setup e2e-notation-leaf-cert-setup e2e-cosign-setup e2e-cosign-setup e2e-licensechecker-setup e2e-sbom-setup e2e-trivy-setup e2e-schemavalidator-setup e2e-vulnerabilityreport-setup e2e-inlinecert-setup e2e-build-crd-image load-build-crd-image e2e-build-local-ratify-image load-local-ratify-image e2e-helm-deploy-ratify
+
+e2e-build-local-ratify-base-image:
+	docker build --progress=plain --no-cache \
+		-f ./httpserver/Dockerfile \
+		-t baselocalbuild:test .
+	kind load docker-image --name kind baselocalbuild:test
 
 e2e-build-local-ratify-image:
 	docker build --progress=plain --no-cache \
@@ -535,10 +577,12 @@ e2e-build-local-ratify-image:
 	--build-arg build_vulnerabilityreport=true \
 	-f ./httpserver/Dockerfile \
 	-t localbuild:test .
+
+load-local-ratify-image:
 	kind load docker-image --name kind localbuild:test
 
 e2e-helmfile-deploy-released-ratify:
-	./.staging/helmfilebin/helmfile sync -f git::https://github.com/deislabs/ratify.git@helmfile.yaml
+	./.staging/helmfilebin/helmfile sync -f git::https://github.com/ratify-project/ratify.git@helmfile.yaml
 
 e2e-helm-deploy-ratify:
 	printf "{\n\t\"auths\": {\n\t\t\"registry:5000\": {\n\t\t\t\"auth\": \"`echo "${TEST_REGISTRY_USERNAME}:${TEST_REGISTRY_PASSWORD}" | tr -d '\n' | base64 -i -w 0`\"\n\t\t}\n\t}\n}" > mount_config.json
@@ -556,7 +600,9 @@ e2e-helm-deploy-ratify:
     --set-file provider.tls.caKey=${CERT_DIR}/ca.key \
 	--set provider.tls.cabundle="$(shell cat ${CERT_DIR}/ca.crt | base64 | tr -d '\n')" \
 	--set notationCerts[0]="$$(cat ~/.config/notation/localkeys/ratify-bats-test.crt)" \
+	--set cosignKeys[0]="$$(cat .staging/cosign/cosign.pub)" \
 	--set cosign.key="$$(cat .staging/cosign/cosign.pub)" \
+	--set cosign.tLogVerify=false \
 	--set oras.useHttp=true \
 	--set-file dockerConfig="mount_config.json" \
 	--set logger.level=debug
@@ -573,8 +619,10 @@ e2e-helm-deploy-ratify-without-tls-certs:
 	--set image.tag=test \
 	--set gatekeeper.version=${GATEKEEPER_VERSION} \
 	--set featureFlags.RATIFY_CERT_ROTATION=${CERT_ROTATION_ENABLED} \
-	--set notaryCert="$$(cat ~/.config/notation/localkeys/ratify-bats-test.crt)" \
+	--set notationCerts[0]="$$(cat ~/.config/notation/localkeys/ratify-bats-test.crt)" \
 	--set cosign.key="$$(cat .staging/cosign/cosign.pub)" \
+	--set cosignKeys[0]="$$(cat .staging/cosign/cosign.pub)" \
+	--set cosign.tLogVerify=false \
 	--set oras.useHttp=true \
 	--set-file dockerConfig="mount_config.json" \
 	--set logger.level=debug
@@ -598,7 +646,7 @@ e2e-helm-deploy-redis: e2e-helm-deploy-dapr
 	kubectl apply -f test/testdata/dapr/dapr-redis-secret.yaml -n ${GATEKEEPER_NAMESPACE}
 	kubectl apply -f test/testdata/dapr/dapr-redis.yaml -n ${GATEKEEPER_NAMESPACE}
  
-e2e-helm-deploy-ratify-replica: e2e-helm-deploy-redis e2e-notation-setup e2e-build-crd-image e2e-build-local-ratify-image
+e2e-helm-deploy-ratify-replica: e2e-helm-deploy-redis e2e-notation-setup e2e-build-crd-image load-build-crd-image e2e-build-local-ratify-image load-local-ratify-image
 	printf "{\n\t\"auths\": {\n\t\t\"registry:5000\": {\n\t\t\t\"auth\": \"`echo "${TEST_REGISTRY_USERNAME}:${TEST_REGISTRY_PASSWORD}" | tr -d '\n' | base64 -i -w 0`\"\n\t\t}\n\t}\n}" > mount_config.json
 
 	./.staging/helm/linux-amd64/helm install ${RATIFY_NAME} \
@@ -628,7 +676,7 @@ e2e-helm-deploy-ratify-replica: e2e-helm-deploy-redis e2e-notation-setup e2e-bui
 	rm mount_config.json
 
 e2e-aks:
-	./scripts/azure-ci-test.sh ${KUBERNETES_VERSION} ${GATEKEEPER_VERSION} ${TENANT_ID} ${GATEKEEPER_NAMESPACE} ${CERT_DIR}
+	./scripts/azure-ci-test.sh ${KUBERNETES_VERSION} ${GATEKEEPER_VERSION} ${TENANT_ID} ${GATEKEEPER_NAMESPACE} ${CERT_DIR} ${AZURE_SP_OBJECT_ID}
 
 e2e-cleanup:
 	./scripts/azure-ci-test-cleanup.sh ${AZURE_SUBSCRIPTION_ID}
@@ -642,9 +690,10 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 generate: controller-gen conversion-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations. Also generate conversions between structs of different API versions.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 	$(CONVERSION_GEN) \
-        --input-dirs "./api/v1beta1,./api/v1alpha1" \
         --go-header-file "./hack/boilerplate.go.txt" \
-        --output-file-base "zz_generated.conversion"
+        --output-file "zz_generated.conversion.go" \
+		./api/v1beta1 ./api/v1alpha1
+
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -692,8 +741,8 @@ CONVERSION_GEN ?= $(LOCALBIN)/conversion-gen
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
-CONTROLLER_TOOLS_VERSION ?= v0.9.2
-CONVERSION_TOOLS_VERSION ?= v0.26.1
+CONTROLLER_TOOLS_VERSION ?= v0.15.0
+CONVERSION_TOOLS_VERSION ?= v0.30.2
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
