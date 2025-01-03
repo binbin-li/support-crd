@@ -40,6 +40,13 @@ var (
 		Description: `Generic error returned when the executor fails to perform an operation. Please check the error details for more information.`,
 	})
 
+	// ErrExecutorNotInitialized is returned when executor is not initialized.
+	ErrExecutorNotInitialized = Register("errcode", ErrorDescriptor{
+		Value:       "EXECUTOR_NOT_INITIALIZED",
+		Message:     "executor not initialized",
+		Description: `The executor is not initialized. Please initialize the executor before using it.`,
+	})
+
 	// ErrorCodeBadRequest is returned if the request is not valid.
 	ErrorCodeBadRequest = Register("errcode", ErrorDescriptor{
 		Value:       "BAD_REQUEST",
