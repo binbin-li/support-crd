@@ -17,8 +17,6 @@ package azure
 
 import (
 	"context"
-	"encoding/json"
-	"os"
 	"time"
 
 	azcontainerregistry "github.com/Azure/azure-sdk-for-go/sdk/containers/azcontainerregistry"
@@ -90,39 +88,12 @@ func init() {
 
 // Create returns an AzureWIAuthProvider
 func (s *AzureWIProviderFactory) Create(authProviderConfig provider.AuthProviderConfig) (provider.AuthProvider, error) {
-	conf := azureWIAuthProviderConf{}
-	authProviderConfigBytes, err := json.Marshal(authProviderConfig)
-	if err != nil {
-		return nil, re.ErrorCodeConfigInvalid.WithComponentType(re.AuthProvider).WithError(err)
-	}
-
-	if err := json.Unmarshal(authProviderConfigBytes, &conf); err != nil {
-		return nil, re.ErrorCodeConfigInvalid.NewError(re.AuthProvider, "", re.EmptyLink, err, "failed to parse auth provider configuration", re.HideStackTrace)
-	}
-
-	tenant := os.Getenv("AZURE_TENANT_ID")
-
-	if tenant == "" {
-		return nil, re.ErrorCodeEnvNotSet.WithComponentType(re.AuthProvider).WithDetail("azure tenant id environment variable is empty")
-	}
-	clientID := conf.ClientID
-	if clientID == "" {
-		clientID = os.Getenv("AZURE_CLIENT_ID")
-		if clientID == "" {
-			return nil, re.ErrorCodeEnvNotSet.WithComponentType(re.AuthProvider).WithDetail("no client ID provided and AZURE_CLIENT_ID environment variable is empty")
-		}
-	}
-
-	// retrieve an AAD Access token
-	token, err := defaultGetAADAccessToken(context.Background(), tenant, clientID, AADResource)
-	if err != nil {
-		return nil, re.ErrorCodeAuthDenied.NewError(re.AuthProvider, "", re.AzureWorkloadIdentityLink, err, "", re.HideStackTrace)
-	}
-
 	return &WIAuthProvider{
-		aadToken:           token,
-		tenantID:           tenant,
-		clientID:           clientID,
+		aadToken: confidential.AuthResult{
+			AccessToken: "accessToken",
+		},
+		tenantID:           "tenantid",
+		clientID:           "clientID",
 		authClientFactory:  &defaultAuthClientFactoryImpl{},    // Concrete implementation
 		registryHostGetter: &defaultRegistryHostGetterImpl{},   // Concrete implementation
 		getAADAccessToken:  &defaultAADAccessTokenGetterImpl{}, // Concrete implementation
@@ -155,16 +126,6 @@ func (d *WIAuthProvider) Provide(ctx context.Context, artifact string) (provider
 	artifactHostName, err := d.registryHostGetter.GetRegistryHost(artifact)
 	if err != nil {
 		return provider.AuthConfig{}, re.ErrorCodeHostNameInvalid.WithComponentType(re.AuthProvider)
-	}
-
-	// need to refresh AAD token if it's expired
-	if time.Now().Add(time.Minute * 5).After(d.aadToken.ExpiresOn) {
-		newToken, err := d.getAADAccessToken.GetAADAccessToken(ctx, d.tenantID, d.clientID, AADResource)
-		if err != nil {
-			return provider.AuthConfig{}, re.ErrorCodeAuthDenied.NewError(re.AuthProvider, "", re.AzureWorkloadIdentityLink, nil, "could not refresh AAD token", re.HideStackTrace)
-		}
-		d.aadToken = newToken
-		logger.GetLogger(ctx, logOpt).Info("successfully refreshed AAD token")
 	}
 
 	// add protocol to generate complete URI

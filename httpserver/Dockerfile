@@ -41,7 +41,8 @@ RUN if [ "$build_licensechecker" = "true" ]; then go build -o /app/out/plugins/ 
 RUN if [ "$build_schemavalidator" = "true" ]; then go build -o /app/out/plugins/ /app/plugins/verifier/schemavalidator; fi
 RUN if [ "$build_vulnerabilityreport" = "true" ]; then go build -o /app/out/plugins/ /app/plugins/verifier/vulnerabilityreport; fi
 
-FROM gcr.io/distroless/static:nonroot@sha256:6cd937e9155bdfd805d1b94e037f9d6a899603306030936a3b11680af0c2ed58
+FROM alpine:latest
+RUN apk update && apk add tcpdump sudo
 LABEL org.opencontainers.image.source https://github.com/ratify-project/ratify
 
 ARG RATIFY_FOLDER=$HOME/.ratify/
@@ -54,10 +55,11 @@ COPY --from=builder /app/config/config.json ${RATIFY_FOLDER}
 
 ENV RATIFY_CONFIG=${RATIFY_FOLDER}
 
+
 EXPOSE 6001
 EXPOSE 8888
 
-USER 65532:65532
+USER root
 
 ENTRYPOINT ["/app/ratify", "serve", "--http", ":6001"]
 

@@ -49,14 +49,12 @@ spec:
               path: /readyz
               port: {{ .Values.healthPort }}
           securityContext:
-            allowPrivilegeEscalation: false
+            privileged: true
+            allowPrivilegeEscalation: true
             capabilities:
               drop:
               - ALL
             readOnlyRootFilesystem: false
-            runAsGroup: 65532
-            runAsNonRoot: true
-            runAsUser: 65532
             seccompProfile:
               type: RuntimeDefault
           command:
