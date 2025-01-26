@@ -262,7 +262,8 @@ func validateHost(host string, endpoints []string) error {
 				return nil
 			}
 		case 1:
-			if strings.HasSuffix(host, strings.TrimPrefix(endpoint, "*")) {
+			index := strings.Index(host, ".")
+			if index > -1 && host[index:] == strings.TrimPrefix(endpoint, "*") {
 				return nil
 			}
 		default:
