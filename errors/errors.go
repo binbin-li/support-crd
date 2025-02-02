@@ -119,10 +119,24 @@ var (
 		Description: "Failed to encode data. Please verify the encoding data.",
 	})
 
-	// ErrorCodeKeyManagementConflict is returned when key management provider and certificate store are configured together.
-	ErrorCodeKeyManagementConflict = Register("errcode", ErrorDescriptor{
-		Value:       "KEY_MANAGEMENT_CONFLICT",
-		Message:     "key management provider and certificate store should not be configured together",
-		Description: "Key management provider and certificate store should not be configured together. Please migrate to key management provider and delete certificate store.",
+	// ErrorCodeNotFound is returned when the requested resource is not found.
+	ErrorCodeNotFound = Register("errcode", ErrorDescriptor{
+		Value:       "RESOURCE_NOT_FOUND",
+		Message:     "resource not found",
+		Description: "The requested resource is not found. Please verify the resource exists.",
+	})
+
+	// ErrorCodeForbidden is returned when the requested operation is forbidden.
+	ErrorCodeForbidden = Register("errcode", ErrorDescriptor{
+		Value:       "OPERATION_FORBIDDEN",
+		Message:     "operation forbidden",
+		Description: "The requested operation is forbidden. Please verify the permission to the requested resource.",
+	})
+
+	// ErrorCodeConfigInvalid is returned if provided alibabacloud image is invalid.
+	ErrorCodeAlibabaCloudImageInvalid = Register("errcode", ErrorDescriptor{
+		Value:       "ALIBABACLOUD_IMAGE_INVALID",
+		Message:     "image invalid",
+		Description: `Invalid Alibaba Cloud Registry image format. Please verify your image configuration.`,
 	})
 )

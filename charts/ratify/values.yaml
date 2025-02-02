@@ -1,7 +1,7 @@
 image:
-  repository: ghcr.io/deislabs/ratify
-  crdRepository: ghcr.io/deislabs/ratify-crds
-  tag: v1.1.0
+  repository: ghcr.io/ratify-project/ratify
+  crdRepository: ghcr.io/ratify-project/ratify-crds
+  tag: v1.4.0-rc.1
   pullPolicy: IfNotPresent
 
 nameOverride: ""
@@ -9,12 +9,32 @@ fullnameOverride: ""
 replicaCount: 1
 affinity: {}
 tolerations: []
-notationCert: ""
 notationCerts: []
+cosignKeys: []
+
+notation:
+  enabled: true
+  trustPolicies:
+    - name: default
+      verificatonLevel: strict
+      registryScopes:
+        - "*"
+      trustedIdentities: ["*"]
+      trustStores: []
 
 cosign:
   enabled: true
-  key: ""
+  scopes: ["*"] # corresponds to a single trust policy
+  key: "" # DEPRECATED: Use cosignKeys instead
+  rekorURL: ""
+  tLogVerify: true
+  keyless:
+    ctLogVerify: true
+    certificateIdentity: ""
+    certificateIdentityRegExp: ""
+    certificateOIDCIssuer: ""
+    certificateOIDCIssuerRegExp: ""
+
 vulnerabilityreport:
   enabled: false
   passthrough: false
@@ -36,11 +56,15 @@ resources:
   requests:
     cpu: 600m
     memory: 512Mi
+
 serviceAccount:
   create: true
   name: ratify-admin
+  # Annotations to add to the service account
+  annotations: {}
+
 gatekeeper:
-  version: "3.15.0"
+  version: "3.18.0"
   namespace: # default is gatekeeper-system
 instrumentation:
   metricsEnabled: true
@@ -49,7 +73,7 @@ instrumentation:
 
 # Can be used to authenticate to:
 # ACR -> oras.authProviders.azureWorkloadIdentityEnabled
-# Key Vault -> akvCertConfig.enabled
+# Key Vault -> azurekeyvault.enabled
 azureWorkloadIdentity:
   clientId:
 
@@ -57,15 +81,17 @@ azureManagedIdentity:
   clientId:
   tenantId:
 
-akvCertConfig:
+azurekeyvault:
   enabled: false
   vaultURI:
-  cert1Name:
-  cert1Version:
-  cert2Name:
-  cert2Version:
-  certificates:
   tenantId:
+  certificates: []
+  keys: []
+  refreshInterval:
+
+alibabacloudAcrConfig:
+  defaultInstanceId:
+  acrInstancesConfig: []
 
 oras:
   useHttp: false
@@ -79,6 +105,8 @@ oras:
       endpoint: ""
       partition: "" # defaults to aws
       region: ""
+    alibabacloudAcrBasicEnabled: false
+
   cache:
     # Please tune your cache parameters to get better performance on the Oras Store performance.
     enabled: true # ttl-based cache may cause inconsistency between cache and data source, please disable it if strong consistency is required.
@@ -140,6 +168,10 @@ logger:
     traceIDHeaderName: # List of headers that include the trace ID in the external data requests to Ratify. The same headers will be passed to upstream services like remote registries.
       - "" # e.g. Set it to `x-ms-correlation-request-id` to trace across Azure.
 
+crl:
+  cache:
+    enabled: true # Enable CRL cache
+
 # See https://ratify.dev/docs/reference/usage#feature-flags for a list of available feature flags
 featureFlags:
   # RATIFY_FEATURE_NAME: true
@@ -148,3 +180,19 @@ featureFlags:
   RATIFY_CERT_ROTATION: false
   # RATIFY_EXPERIMENTAL_HIGH_AVAILABILITY enables high availability mode including distributed caching.
   RATIFY_EXPERIMENTAL_HIGH_AVAILABILITY: false
+
+notationCert: "" # DEPRECATED: Use notationCerts instead
+akvCertConfig: # DEPRECATED: Use azurekeyvault instead
+  enabled: false # DEPRECATED: Use azurekeyvault.enabled instead
+  vaultURI: # DEPRECATED: Use azurekeyvault.vaultURI instead
+  cert1Name: # DEPRECATED: Use azurekeyvault.certificates instead
+  cert1Version: # DEPRECATED: Use azurekeyvault.certificates instead
+  cert2Name: # DEPRECATED: Use azurekeyvault.certificates instead
+  cert2Version: # DEPRECATED: Use azurekeyvault.certificates instead
+  certificates: # DEPRECATED: Use azurekeyvault.certificates instead
+  tenantId: # DEPRECATED: Use azurekeyvault.tenantId instead
+
+# env: environment variables for ratify container
+env: []
+#  - name: https_proxy
+#    value: http://proxy-server:80

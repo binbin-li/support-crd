@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"strings"
 
-	re "github.com/deislabs/ratify/errors"
-	"github.com/deislabs/ratify/pkg/common"
-	"github.com/deislabs/ratify/pkg/ocispecs"
 	oci "github.com/opencontainers/image-spec/specs-go/v1"
+	re "github.com/ratify-project/ratify/errors"
+	"github.com/ratify-project/ratify/pkg/common"
+	"github.com/ratify-project/ratify/pkg/ocispecs"
 
 	"oras.land/oras-go/v2/errdef"
 	"oras.land/oras-go/v2/registry"
@@ -46,7 +46,7 @@ func getCosignReferences(ctx context.Context, subjectReference common.Reference,
 			return nil, nil
 		}
 		evictOnError(ctx, err, subjectReference.Original)
-		return nil, re.ErrorCodeRepositoryOperationFailure.WithError(err).WithComponentType(re.ReferrerStore)
+		return nil, re.ErrorCodeRepositoryOperationFailure.WithDetail(fmt.Sprintf("Failed to validate existence of Cosign signature of the artifact: %+v", subjectReference)).WithError(err)
 	}
 
 	references = append(references, ocispecs.ReferenceDescriptor{
@@ -64,7 +64,7 @@ func getCosignReferences(ctx context.Context, subjectReference common.Reference,
 func attachedImageTag(subjectReference common.Reference, tagSuffix string) (string, error) {
 	// sha256:d34db33f -> sha256-d34db33f.suffix
 	if subjectReference.Digest.String() == "" {
-		return "", re.ErrorCodeReferenceInvalid.WithComponentType(re.ReferrerStore).WithDetail("Cosign subject digest is empty")
+		return "", re.ErrorCodeReferenceInvalid.WithDetail("The digest of the artifact is empty")
 	}
 	tagStr := strings.ReplaceAll(subjectReference.Digest.String(), ":", "-") + tagSuffix
 	return fmt.Sprintf("%s:%s", subjectReference.Path, tagStr), nil

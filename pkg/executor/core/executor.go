@@ -21,21 +21,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/deislabs/ratify/errors"
-	"github.com/deislabs/ratify/internal/logger"
-	"github.com/deislabs/ratify/pkg/common"
-	e "github.com/deislabs/ratify/pkg/executor"
-	"github.com/deislabs/ratify/pkg/executor/config"
-	"github.com/deislabs/ratify/pkg/executor/types"
-	"github.com/deislabs/ratify/pkg/metrics"
-	"github.com/deislabs/ratify/pkg/ocispecs"
-	"github.com/deislabs/ratify/pkg/policyprovider"
-	pt "github.com/deislabs/ratify/pkg/policyprovider/types"
-	"github.com/deislabs/ratify/pkg/referrerstore"
-	su "github.com/deislabs/ratify/pkg/referrerstore/utils"
-	"github.com/deislabs/ratify/pkg/utils"
-	vr "github.com/deislabs/ratify/pkg/verifier"
-	vt "github.com/deislabs/ratify/pkg/verifier/types"
+	"github.com/ratify-project/ratify/errors"
+	"github.com/ratify-project/ratify/internal/logger"
+	"github.com/ratify-project/ratify/pkg/common"
+	e "github.com/ratify-project/ratify/pkg/executor"
+	"github.com/ratify-project/ratify/pkg/executor/config"
+	"github.com/ratify-project/ratify/pkg/executor/types"
+	"github.com/ratify-project/ratify/pkg/metrics"
+	"github.com/ratify-project/ratify/pkg/ocispecs"
+	"github.com/ratify-project/ratify/pkg/policyprovider"
+	pt "github.com/ratify-project/ratify/pkg/policyprovider/types"
+	"github.com/ratify-project/ratify/pkg/referrerstore"
+	su "github.com/ratify-project/ratify/pkg/referrerstore/utils"
+	"github.com/ratify-project/ratify/pkg/utils"
+	vr "github.com/ratify-project/ratify/pkg/verifier"
+	vt "github.com/ratify-project/ratify/pkg/verifier/types"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -60,6 +60,9 @@ type Executor struct {
 // TODO Logging within executor
 // VerifySubject verifies the subject and returns results.
 func (executor Executor) VerifySubject(ctx context.Context, verifyParameters e.VerifyParameters) (types.VerifyResult, error) {
+	if executor.PolicyEnforcer == nil {
+		return types.VerifyResult{}, errors.ErrorCodePolicyProviderNotFound.WithDetail("Policy configuration not found")
+	}
 	result, err := executor.verifySubjectInternal(ctx, verifyParameters)
 	if err != nil {
 		// get the result for the error based on the policy.
@@ -80,7 +83,7 @@ func (executor Executor) verifySubjectInternal(ctx context.Context, verifyParame
 	}
 	if executor.PolicyEnforcer.GetPolicyType(ctx) == pt.ConfigPolicy {
 		if len(verifierReports) == 0 {
-			return types.VerifyResult{}, errors.ErrorCodeReferrersNotFound.WithComponentType(errors.Executor)
+			return types.VerifyResult{}, errors.ErrorCodeNoVerifierReport.WithDetail(fmt.Sprintf("No verification results for the artifact %s. Ensure verifiers are properly configured and that artifact metadata is attached", verifyParameters.Subject))
 		}
 	}
 	// If it requires embedded Rego Policy Engine make the decision, execute
@@ -172,19 +175,17 @@ func (executor Executor) verifyReferenceForJSONPolicy(ctx context.Context, subje
 		if verifier.CanVerify(ctx, referenceDesc) {
 			verifierStartTime := time.Now()
 			verifyResult, err := verifier.Verify(ctx, subjectRef, referenceDesc, referrerStore)
-			verifyResult.Subject = subjectRef.String()
 			if err != nil {
-				verifyResult = vr.VerifierResult{
-					IsSuccess: false,
-					Name:      verifier.Name(),
-					Type:      verifier.Type(),
-					Message:   errors.ErrorCodeVerifyReferenceFailure.NewError(errors.Verifier, verifier.Name(), errors.EmptyLink, err, nil, errors.HideStackTrace).Error()}
+				verifierErr := errors.ErrorCodeVerifyReferenceFailure.WithError(err)
+				verifyResult = vr.NewVerifierResult("", verifier.Name(), verifier.Type(), "", false, &verifierErr, nil)
 			}
 
 			if len(verifier.GetNestedReferences()) > 0 {
 				executor.addNestedVerifierResult(ctx, referenceDesc, subjectRef, &verifyResult)
 			}
 
+			verifyResult.Subject = subjectRef.String()
+			verifyResult.ReferenceDigest = referenceDesc.Digest.String()
 			verifyResult.ArtifactType = referenceDesc.ArtifactType
 			verifyResults = append(verifyResults, verifyResult)
 			isSuccess = verifyResult.IsSuccess
@@ -223,11 +224,8 @@ func (executor Executor) verifyReferenceForRegoPolicy(ctx context.Context, subje
 			verifierStartTime := time.Now()
 			verifierResult, err := verifier.Verify(errCtx, subjectRef, referenceDesc, referrerStore)
 			if err != nil {
-				verifierReport = vt.VerifierResult{
-					IsSuccess: false,
-					Name:      verifier.Name(),
-					Type:      verifier.Type(),
-					Message:   errors.ErrorCodeVerifyReferenceFailure.NewError(errors.Verifier, verifier.Name(), errors.EmptyLink, err, nil, errors.HideStackTrace).Error()}
+				verifierErr := errors.ErrorCodeVerifyReferenceFailure.WithError(err)
+				verifierReport = vt.CreateVerifierResult(verifier.Name(), verifier.Type(), "", false, &verifierErr)
 			} else {
 				verifierReport = vt.NewVerifierResult(verifierResult)
 			}
@@ -290,7 +288,7 @@ func (executor Executor) addNestedReports(ctx context.Context, referenceDes ocis
 	for _, report := range reports.VerifierReports {
 		nestedReport, err := types.NewNestedVerifierReport(report)
 		if err != nil {
-			return errors.ErrorCodeExecutorFailure.WithError(err).WithComponentType(errors.Executor)
+			return errors.ErrorCodeExecutorFailure.WithError(err)
 		}
 		nestedReports = append(nestedReports, nestedReport)
 	}

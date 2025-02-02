@@ -16,11 +16,15 @@ limitations under the License.
 package keymanagementprovider
 
 import (
+	"context"
+	"crypto"
+	"crypto/rsa"
 	"crypto/x509"
 	"errors"
 	"testing"
 
-	ratifyerrors "github.com/deislabs/ratify/errors"
+	ratifyerrors "github.com/ratify-project/ratify/errors"
+	ctxUtils "github.com/ratify-project/ratify/internal/context"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -34,11 +38,16 @@ func TestDecodeCertificates(t *testing.T) {
 	}{
 		{
 			desc:        "empty string",
-			expectedErr: false,
+			expectedErr: true,
 		},
 		{
 			desc:        "invalid certificate",
 			pemString:   "-----BEGIN CERTIFICATE-----\nbaddata\n-----END CERTIFICATE-----\n",
+			expectedErr: true,
+		},
+		{
+			desc:        "invalid certificate",
+			pemString:   "-----BEGIN PUBLIC KEY-----MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAweAc4xikYT4ZszXVdF5mrgP0zKVYi4Ces0py9dw8XZfh/Hlxb5xWMs4DzTcKwmLatgKNSrvNyOaxkBD90PvcYNaTCwzwQ09kZ5dYtVOV4sdzeyOj8UDtf4MF5eJgJj/wWCQJnWrX/4n6nSdNTXSJEFAZkDv0BKVkZekJHn3fh+pOuv8UtvOrY1NjNK/TLWxB+8xpwugeB9oZ+VgV/gHZBLprxYkmUDsfngYy3+r6RZ+hInalZc5uAbtRUoB8+nVhXXOe3iVcVWFoWPMJ2fuPHz/8cDjv02MNWa/MeAt+ItW3N+VFZNkwbu5en3FepsxzRl04rhZzr1DSX6V6CVX43wIDAQAB-----END PUBLIC KEY-----",
 			expectedErr: true,
 		},
 		{
@@ -76,7 +85,7 @@ func TestDecodeCertificates_ByteArrayToCertificates(t *testing.T) {
 
 	r, err := DecodeCertificates(c1)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	expectedLen := 1
@@ -130,7 +139,7 @@ func TestDecodeCertificates_FailedX509ParseError(t *testing.T) {
 // TestSetCertificatesInMap checks if certificates are set in the map
 func TestSetCertificatesInMap(t *testing.T) {
 	certificatesMap.Delete("test")
-	SetCertificatesInMap("test", map[KMPMapKey][]*x509.Certificate{{}: {{Raw: []byte("testcert")}}})
+	setCertificatesInMap("test", map[KMPMapKey][]*x509.Certificate{{}: {{Raw: []byte("testcert")}}})
 	if _, ok := certificatesMap.Load("test"); !ok {
 		t.Fatalf("certificatesMap should have been set for key")
 	}
@@ -138,9 +147,9 @@ func TestSetCertificatesInMap(t *testing.T) {
 
 // TestGetCertificatesFromMap checks if certificates are fetched from the map
 func TestGetCertificatesFromMap(t *testing.T) {
-	certificatesMap.Delete("test")
-	SetCertificatesInMap("test", map[KMPMapKey][]*x509.Certificate{{}: {{Raw: []byte("testcert")}}})
-	certs := GetCertificatesFromMap("test")
+	DeleteResourceFromMap("test")
+	setCertificatesInMap("test", map[KMPMapKey][]*x509.Certificate{{}: {{Raw: []byte("testcert")}}})
+	certs, _ := GetCertificatesFromMap(context.Background(), "test")
 	if len(certs) != 1 {
 		t.Fatalf("certificates should have been fetched from the map")
 	}
@@ -148,20 +157,38 @@ func TestGetCertificatesFromMap(t *testing.T) {
 
 // TestGetCertificatesFromMap_FailedToFetch checks if certificates are fetched from the map
 func TestGetCertificatesFromMap_FailedToFetch(t *testing.T) {
-	certificatesMap.Delete("test")
-	certs := GetCertificatesFromMap("test")
+	DeleteResourceFromMap("test")
+	certs, _ := GetCertificatesFromMap(context.Background(), "test")
 	if len(certs) != 0 {
 		t.Fatalf("certificates should not have been fetched from the map")
 	}
 }
 
+// TestGetCertificatesFromMap_ErrorFromReconcile checks if error is returned from reconcile
+func TestGetCertificatesFromMap_ErrorFromReconcile(t *testing.T) {
+	DeleteResourceFromMap("test")
+	SetCertificateError("test", errors.New("test error"))
+	if _, err := GetCertificatesFromMap(context.Background(), "test"); err == nil {
+		t.Fatalf("expected error, but got nil")
+	}
+	DeleteResourceFromMap("test")
+}
+
 // TestDeleteCertificatesFromMap checks if certificates are deleted from the map
 func TestDeleteCertificatesFromMap(t *testing.T) {
-	certificatesMap.Delete("test")
-	SetCertificatesInMap("test", map[KMPMapKey][]*x509.Certificate{{}: {{Raw: []byte("testcert")}}})
-	DeleteCertificatesFromMap("test")
-	if _, ok := certificatesMap.Load("test"); ok {
-		t.Fatalf("certificatesMap should have been deleted for key")
+	resource := "test"
+	disabledCert := KMPMapKey{Name: "test", Version: "0", Enabled: false}
+	enabledCert := KMPMapKey{Name: "test", Version: "1", Enabled: true}
+	certsMap := map[KMPMapKey][]*x509.Certificate{}
+	certsMap[disabledCert] = []*x509.Certificate{{Raw: []byte("testcert")}}
+	certsMap[enabledCert] = []*x509.Certificate{{Raw: []byte("testcert")}}
+	setCertificatesInMap(resource, certsMap)
+	DeleteCertificateFromMap(resource, disabledCert)
+
+	certs, _ := GetCertificatesFromMap(context.Background(), resource)
+
+	if len(certs) != 1 {
+		t.Fatalf("certificates should have been deleted from the map")
 	}
 }
 
@@ -170,5 +197,109 @@ func TestFlattenKMPMap(t *testing.T) {
 	certs := FlattenKMPMap(map[KMPMapKey][]*x509.Certificate{{}: {{Raw: []byte("testcert")}}})
 	if len(certs) != 1 {
 		t.Fatalf("certificates should have been flattened")
+	}
+}
+
+// TestSetKeysInMap checks if keys are set in the map
+func TestSetKeysInMap(t *testing.T) {
+	keyMap.Delete("test")
+	setKeysInMap("test", "", map[KMPMapKey]crypto.PublicKey{{}: &rsa.PublicKey{}})
+	if _, ok := keyMap.Load("test"); !ok {
+		t.Fatalf("keysMap should have been set for key")
+	}
+}
+
+// TestSaveSecrets checks if secrets are saved in the map.
+func TestSaveSecrets(t *testing.T) {
+	DeleteResourceFromMap("test")
+
+	SaveSecrets("test", "", map[KMPMapKey]crypto.PublicKey{{}: &rsa.PublicKey{}}, map[KMPMapKey][]*x509.Certificate{{}: {{Raw: []byte("testcert")}}})
+	if _, ok := certificatesMap.Load("test"); !ok {
+		t.Fatalf("certificatesMap should have been set for key")
+	}
+	if _, ok := certificatesMap.Load("test"); !ok {
+		t.Fatalf("certificatesMap should have been set for key")
+	}
+
+	DeleteResourceFromMap("test")
+}
+
+// TestGetKeysFromMap checks if keys are fetched from the map
+func TestGetKeysFromMap(t *testing.T) {
+	DeleteResourceFromMap("test")
+	setKeysInMap("test", "", map[KMPMapKey]crypto.PublicKey{{}: &rsa.PublicKey{}})
+	keys, _ := GetKeysFromMap(context.Background(), "test")
+	if len(keys) != 1 {
+		t.Fatalf("keys should have been fetched from the map")
+	}
+
+	SetKeyError("test", errors.New("test error"))
+	if _, err := GetKeysFromMap(context.Background(), "test"); err == nil {
+		t.Fatalf("expected error, but got nil")
+	}
+	DeleteResourceFromMap("test")
+}
+
+// TestGetKeysFromMap_FailedToFetch checks if keys fail to fetch from map
+func TestGetKeysFromMap_FailedToFetch(t *testing.T) {
+	keyMap.Delete("test")
+	keys, _ := GetKeysFromMap(context.Background(), "test")
+	if len(keys) != 0 {
+		t.Fatalf("keys should not have been fetched from the map")
+	}
+}
+
+func TestGetKeysFromMap_AccessDifferentNamespace_ReturnsFalse(t *testing.T) {
+	keyMap.Delete("test")
+	ctx := ctxUtils.SetContextWithNamespace(context.Background(), "namespace1")
+	keys, _ := GetKeysFromMap(ctx, "namespace2/test")
+	if len(keys) != 0 {
+		t.Fatalf("keys should not have been fetched from the map")
+	}
+}
+
+// TestDeleteKeysFromMap checks if key map entry is deleted from the map
+func TestDeleteKeysFromMap(t *testing.T) {
+	resource := "test"
+	keysMap := map[KMPMapKey]crypto.PublicKey{}
+	keyMapKey0 := KMPMapKey{Name: "test", Version: "0", Enabled: false}
+	keyMapKey1 := KMPMapKey{Name: "test", Version: "1", Enabled: true}
+	keysMap[keyMapKey0] = crypto.PublicKey(&rsa.PublicKey{})
+	keysMap[keyMapKey1] = crypto.PublicKey(&rsa.PublicKey{})
+	setKeysInMap(resource, "", keysMap)
+	DeleteKeyFromMap(resource, keyMapKey1)
+	keys, _ := GetKeysFromMap(context.Background(), resource)
+	if len(keys) != 1 {
+		t.Fatalf("keys should have been deleted from the map")
+	}
+}
+
+// TestDecodeKey checks if key is decoded from pem
+func TestDecodeKey(t *testing.T) {
+	validKey := `-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEozC27QupU+1GvAL0tqR7bT3Vpyyf
+OSeWVmPjy6J5x8+6OIpmTs8PKQB1vTF0gErwa1gS/QaOElLaxDKy0GS9Jg==
+-----END PUBLIC KEY-----`
+	cases := []struct {
+		desc        string
+		pemString   string
+		expectedErr bool
+	}{
+		{
+			desc:        "valid public key",
+			pemString:   validKey,
+			expectedErr: false,
+		},
+		{
+			desc:        "invalid public key",
+			pemString:   "foo",
+			expectedErr: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			_, err := DecodeKey([]byte(tc.pemString))
+			assert.Equal(t, tc.expectedErr, err != nil)
+		})
 	}
 }

@@ -105,11 +105,11 @@ var (
 		Description: `The manifest is invalid. Please validate the manifest is correctly formatted.`,
 	})
 
-	// ErrorCodeReferrersNotFound is returned if there is no ReferrerStore set.
-	ErrorCodeReferrersNotFound = Register("errcode", ErrorDescriptor{
-		Value:       "REFERRERS_NOT_FOUND",
-		Message:     "referrers not found",
-		Description: "No referrers are found. Please verify the subject has attached expected artifacts and refer to https://ratify.dev/docs/reference/store/ to investigate Referrer Store configuration.",
+	// ErrorCodeNoVerifierReport is returned if there is no ReferrerStore set.
+	ErrorCodeNoVerifierReport = Register("errcode", ErrorDescriptor{
+		Value:       "NO_VERIFIER_REPORT",
+		Message:     "no verifier report",
+		Description: "No verifier report was generated. This might be due to various factors, such as lack of artifacts attached to the image, a misconfiguration in the Referrer Store preventing access to the registry, or the absence of appropriate verifiers corresponding to the referenced image artifacts.",
 	})
 
 	// Generic errors happen in plugins
@@ -145,6 +145,14 @@ var (
 		Description: "The certificate is invalid. Please verify the provided inline certificates or certificates fetched from key vault are in valid format. Refer to https://ratify.dev/docs/reference/crds/certificate-stores for more information.",
 	})
 
+	// ErrorCodeKeyInvalid is returned when provided key is invalid.
+	// TODO: add website docs for this error code and update URL for error description
+	ErrorCodeKeyInvalid = Register("errcode", ErrorDescriptor{
+		Value:       "KEY_INVALID",
+		Message:     "key invalid",
+		Description: "The key is invalid. Please verify the provided inline key or key fetched from key vault is in valid format. Refer to [INPUT URL] for more information.",
+	})
+
 	// ErrorCodePolicyProviderNotFound is returned when a policy provider cannot
 	// be found.
 	ErrorCodePolicyProviderNotFound = Register("errcode", ErrorDescriptor{
@@ -159,5 +167,12 @@ var (
 		Value:       "KEY_VAULT_OPERATION_FAILURE",
 		Message:     "Key vault operation failed",
 		Description: "Key vault operation failed. Please validate correct key vault configuration is provided or check the error details for further investigation.",
+	})
+
+	// ErrorCodeKeyManagementProviderFailure is returned when a key management provider operation fails.
+	ErrorCodeKeyManagementProviderFailure = Register("errcode", ErrorDescriptor{
+		Value:       "KEY_MANAGEMENT_PROVIDER_FAILURE",
+		Message:     "Key management provider failure",
+		Description: "Generic failure in key management provider. Please validate correct key management provider configuration is provided or check the error details for further investigation.",
 	})
 )

@@ -13,11 +13,13 @@ spec:
   template:
     metadata:
       labels:
+        {{- include "ratify.podLabels" . | nindent 8 }}
         {{- include "ratify.selectorLabels" . | nindent 8 }}
         {{- if ne .Values.azureWorkloadIdentity.clientId "" }}
         azure.workload.identity/use: "true"
         {{- end }}
       annotations:
+        {{- include "ratify.podAnnotations" . | nindent 8 }}
         {{- if eq .Values.instrumentation.metricsType "prometheus" }}
         prometheus.io/scrape: "true"
         prometheus.io/port: {{ .Values.instrumentation.metricsPort | quote }}
@@ -88,7 +90,7 @@ spec:
               name: healthz
               protocol: TCP
           volumeMounts:             
-            {{- if .Values.cosign.enabled }}
+            {{- if and .Values.cosign.enabled .Values.cosign.key }}
             - mountPath: "/usr/local/ratify-certs/cosign"
               name: cosign-certs
               readOnly: true
@@ -110,6 +112,9 @@ spec:
               readOnly: true
             {{- end }}
           env:
+          {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- if .Values.logger.level }}
             - name: RATIFY_LOG_LEVEL
               value: {{ .Values.logger.level }}
@@ -145,7 +150,7 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
-        {{- if .Values.cosign.enabled }}
+        {{- if and .Values.cosign.enabled .Values.cosign.key }}
         - name: cosign-certs
           secret:
             secretName: {{ include "ratify.fullname" . }}-cosign-certificate

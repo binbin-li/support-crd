@@ -21,7 +21,7 @@ import (
 	"encoding/pem"
 	"fmt"
 
-	"github.com/deislabs/ratify/errors"
+	"github.com/ratify-project/ratify/errors"
 )
 
 // This is a map containing Cert store configuration including name, tenantID, and cert object information
@@ -75,5 +75,8 @@ func DecodeCertificates(value []byte) ([]*x509.Certificate, error) {
 		}
 	}
 
+	if len(certs) == 0 {
+		return nil, errors.ErrorCodeCertInvalid.WithComponentType(errors.CertProvider).WithDetail("no certificates found in the pem block")
+	}
 	return certs, nil
 }

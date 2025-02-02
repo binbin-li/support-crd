@@ -22,6 +22,7 @@ import (
 
 	"github.com/notaryproject/notation-go/dir"
 	"github.com/notaryproject/notation-go/plugin"
+	pl "github.com/notaryproject/notation-plugin-framework-go/plugin"
 )
 
 const (
@@ -39,7 +40,7 @@ func NewRatifyPluginManager(directory string) *RatifyPluginManager {
 }
 
 // Returns a notation Plugin for the given name if present in the target directory
-func (m *RatifyPluginManager) Get(ctx context.Context, name string) (plugin.Plugin, error) {
+func (m *RatifyPluginManager) Get(ctx context.Context, name string) (pl.Plugin, error) {
 	path, err := m.pluginFS.SysPath(notationPluginPrefix + name)
 	if err != nil {
 		return nil, err
@@ -52,7 +53,7 @@ func (m *RatifyPluginManager) Get(ctx context.Context, name string) (plugin.Plug
 // Lists available notation plugins in the target directory
 func (m *RatifyPluginManager) List(_ context.Context) ([]string, error) {
 	var plugins []string
-	err := fs.WalkDir(m.pluginFS, ".", func(dir string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(m.pluginFS, ".", func(_ string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

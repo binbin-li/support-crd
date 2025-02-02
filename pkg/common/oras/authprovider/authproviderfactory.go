@@ -18,7 +18,7 @@ package authprovider
 import (
 	"fmt"
 
-	"github.com/deislabs/ratify/errors"
+	"github.com/ratify-project/ratify/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -38,7 +38,6 @@ func Register(name string, factory AuthProviderFactory) {
 	if registered {
 		panic(fmt.Sprintf("auth provider factory named %s already registered", name))
 	}
-
 	builtInAuthProviders[name] = factory
 }
 

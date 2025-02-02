@@ -1,5 +1,5 @@
 {{- $fullname := include "ratify.fullname" . -}}
----
+{{- if .Values.notation.enabled }}
 apiVersion: config.ratify.deislabs.io/v1beta1
 kind: Verifier
 metadata:
@@ -13,32 +13,100 @@ spec:
   artifactTypes: application/vnd.cncf.notary.signature
   parameters:
     verificationCertStores:
+    {{- if and (eq (len .Values.notation.trustPolicies) 1) (eq (len (index .Values.notation.trustPolicies 0).trustStores) 0) }}
       certs:
-        {{- if .Values.akvCertConfig.enabled }}
+        {{- if or .Values.azurekeyvault.enabled .Values.akvCertConfig.enabled }}
         - kmprovider-akv
-        {{- else }}
-          {{- if .Values.notationCert }}
-            {{- if .Values.notationCerts }}
-            {{- fail "Please specify notation certs with .Values.notationCerts, single certificate .Values.notationCert has been deprecated, will soon be removed." }}
-            {{- end }}
-        - {{$fullname}}-notation-inline-cert
-          {{- end }} 
-          {{- range $i, $cert := .Values.notationCerts }}
-        - {{$fullname}}-notation-inline-cert-{{$i}}
-          {{- end }} 
         {{- end }}
+        {{- if .Values.notationCert }}
+          {{- if .Values.notationCerts }}
+          {{- fail "Please specify notation certs with .Values.notationCerts, single certificate .Values.notationCert has been deprecated, will soon be removed." }}
+          {{- end }}
+        - {{$fullname}}-notation-inline-cert
+        {{- end }} 
+        {{- range $i, $cert := .Values.notationCerts }}
+        - {{$fullname}}-notation-inline-cert-{{$i}}
+        {{- end }}
+    {{- else }}
+      {{- $certStoreMap := dict }}
+      {{- $certStoreIndex := 0 }}
+      {{- range $i, $policy := .Values.notation.trustPolicies }}
+        {{- range $j, $store := $policy.trustStores }}
+          {{- $storeParts := split ":" $store }}
+          {{- $certType := $storeParts._0 }}
+          {{- $certName := printf "cert-%d" $certStoreIndex }}
+          {{- $certStoreIndex = add $certStoreIndex 1 }}
+          {{- $certRef := $storeParts._1 }}
+          {{- if eq $certType "ca" }}
+            {{- if hasPrefix "notationcerts" (lower $certRef) }}
+              {{- $certStoreMap = merge $certStoreMap (dict "ca" (dict $certName (list (printf "%s-notation-inline-cert-%d" $fullname (int (regexReplaceAll "[^0-9]" $certRef "")))))) }}
+            {{- else if (eq (lower $certRef) "azurekeyvault") }}
+              {{- $certStoreMap = merge $certStoreMap (dict "ca" (dict $certName (list (printf "kmprovider-akv" )))) }}
+            {{- else }}
+              {{ fail (printf "Unknown trust store reference: %s" $certRef) }}
+            {{- end}}
+          {{- else if eq $certType "tsa" }}
+            {{- if hasPrefix "notationcerts" (lower $certRef) }}
+              {{- $certStoreMap = merge $certStoreMap (dict "tsa" (dict $certName (list (printf "%s-notation-inline-cert-%d" $fullname (int (regexReplaceAll "[^0-9]" $certRef "")))))) }}
+            {{- else if (eq (lower $certRef) "azurekeyvault") }}
+              {{- $certStoreMap = merge $certStoreMap (dict "tsa" (dict $certName (list (printf "kmprovider-akv" )))) }}
+            {{- else }}
+              {{ fail (printf "Unknown trust store reference: %s" $certRef) }}
+            {{- end}}
+          {{- else if eq $certType "signingAuthority" }}
+            {{- if hasPrefix "notationcerts" (lower $certRef) }}
+              {{- $certStoreMap = merge $certStoreMap (dict "signingAuthority" (dict $certName (list (printf "%s-notation-inline-cert-%d" $fullname (int (regexReplaceAll "[^0-9]" $certRef "")))))) }}
+            {{- else if (eq (lower $certRef) "azurekeyvault") }}
+              {{- $certStoreMap = merge $certStoreMap (dict "signingAuthority" (dict $certName (list (printf "kmprovider-akv" )))) }}
+            {{- else }}
+              {{ fail (printf "Unknown trust store reference: %s" $certRef) }}
+            {{- end}}
+          {{- else }}
+            {{ fail (printf "Unknown certificate type: %s" $certType) }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      {{- range $storeType, $value := $certStoreMap }}
+      {{ $storeType }}:
+        {{- range $certName, $certRefList := $value }}
+        {{ $certName }}:
+          {{- range $certRefList }}
+          - {{ . }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
     trustPolicyDoc:
       version: "1.0"
       trustPolicies:
-        - name: default
+        {{- $trustStoreIndex := 0 }}
+        {{- range $i, $policy := .Values.notation.trustPolicies }}
+        - name: {{ .name | default (printf "trustPolicy-%d" $i) }}  
           registryScopes:
-            - "*"
+            {{- range .registryScopes }}
+            - "{{ . }}"
+            {{- end }}
           signatureVerification:
-            level: strict
+            level: {{ .level | default "strict" }}  
           trustStores:
+          {{- if eq (len $policy.trustStores) 0 }}
             - ca:certs
+          {{- else }}
+            {{- range $j, $store := $policy.trustStores }}
+              {{- $storeParts := split ":" $store }}
+              {{- $certType := $storeParts._0 }}
+              {{- $certName := printf "cert-%d" $trustStoreIndex }}
+              {{- $trustStoreIndex = add $trustStoreIndex 1 }}
+            - {{ $certType }}:{{ $certName }}
+            {{- end }}
+          {{- end}}
           trustedIdentities:
-            - "*"
+            {{- $trustedIdentities := $policy.trustedIdentities | default (list "*") }}
+            {{- range $j, $identity := $trustedIdentities }}
+            - "{{$identity}}"
+            {{- end }}
+        {{- end }}
+{{- end }}
 ---
 {{- if .Values.cosign.enabled }}
 apiVersion: config.ratify.deislabs.io/v1beta1
@@ -50,10 +118,36 @@ metadata:
     helm.sh/hook-weight: "5"
 spec:
   name: cosign
-  version: 1.0.0
   artifactTypes: application/vnd.dev.cosign.artifact.sig.v1+json
   parameters:
+    {{- if  (eq (include "ratify.cosignLegacy" .) "false") }}
+    trustPolicies:
+      - name: default
+        version: 1.0.0
+        scopes:
+          {{- range $i, $scope := .Values.cosign.scopes }}
+          - "{{$scope}}"
+          {{- end }}
+        keys:
+          {{- range $i, $key := .Values.cosignKeys }}
+          - provider: {{$fullname}}-cosign-inline-key-{{$i}}
+          {{- end }}
+          {{- if and .Values.azurekeyvault.enabled (gt (len .Values.azurekeyvault.keys) 0) }}
+          - provider: kmprovider-akv
+          {{- end }}
+        tLogVerify: {{ .Values.cosign.tLogVerify }}
+        rekorURL: {{ .Values.cosign.rekorURL }}
+        {{- if or .Values.cosign.keyless.certificateIdentity .Values.cosign.keyless.certificateIdentityRegExp .Values.cosign.keyless.certificateOIDCIssuer .Values.cosign.keyless.certificateOIDCIssuerRegExp }}
+        keyless:
+          ctLogVerify: {{ .Values.cosign.keyless.ctLogVerify }}
+          certificateIdentity: {{ .Values.cosign.keyless.certificateIdentity }}
+          certificateIdentityRegExp: {{ .Values.cosign.keyless.certificateIdentityRegExp }}
+          certificateOIDCIssuer: {{ .Values.cosign.keyless.certificateOIDCIssuer }}
+          certificateOIDCIssuerRegExp: {{ .Values.cosign.keyless.certificateOIDCIssuerRegExp }}
+        {{- end }}
+    {{- else }}
     key: /usr/local/ratify-certs/cosign/cosign.pub
+    {{- end }}
 {{- end }}
 ---
 {{- if .Values.vulnerabilityreport.enabled }}

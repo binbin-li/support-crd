@@ -22,14 +22,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/deislabs/ratify/config"
-	"github.com/deislabs/ratify/internal/logger"
-	"github.com/deislabs/ratify/pkg/common"
-	"github.com/deislabs/ratify/pkg/ocispecs"
-	"github.com/deislabs/ratify/pkg/referrerstore"
-	sf "github.com/deislabs/ratify/pkg/referrerstore/factory"
-	su "github.com/deislabs/ratify/pkg/referrerstore/utils"
-	"github.com/deislabs/ratify/pkg/utils"
+	"github.com/ratify-project/ratify/config"
+	"github.com/ratify-project/ratify/internal/logger"
+	"github.com/ratify-project/ratify/pkg/common"
+	"github.com/ratify-project/ratify/pkg/ocispecs"
+	"github.com/ratify-project/ratify/pkg/referrerstore"
+	sf "github.com/ratify-project/ratify/pkg/referrerstore/factory"
+	su "github.com/ratify-project/ratify/pkg/referrerstore/utils"
+	"github.com/ratify-project/ratify/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/xlab/treeprint"
 )
@@ -60,7 +60,7 @@ func NewCmdDiscover(argv ...string) *cobra.Command {
 		Short:   "Discover referrers for a subject",
 		Example: eg,
 		Args:    cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			return discover(opts)
 		},
 	}
@@ -96,10 +96,6 @@ func discover(opts discoverCmdOptions) error {
 		return err
 	}
 
-	if subRef.Digest == "" {
-		fmt.Println(taggedReferenceWarning)
-	}
-
 	cf, err := config.Load(opts.configFilePath)
 	if err != nil {
 		return err
@@ -107,6 +103,10 @@ func discover(opts discoverCmdOptions) error {
 
 	if err := logger.InitLogConfig(cf.LoggerConfig); err != nil {
 		return err
+	}
+
+	if subRef.Digest == "" {
+		logger.GetLogger(context.Background(), logOpt).Warn(taggedReferenceWarning)
 	}
 
 	rootImage := treeprint.NewWithRoot(subRef.String())

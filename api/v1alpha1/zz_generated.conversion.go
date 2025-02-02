@@ -23,7 +23,7 @@ package v1alpha1
 import (
 	unsafe "unsafe"
 
-	unversioned "github.com/deislabs/ratify/api/unversioned"
+	unversioned "github.com/ratify-project/ratify/api/unversioned"
 	conversion "k8s.io/apimachinery/pkg/conversion"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -642,6 +642,7 @@ func Convert_v1alpha1_VerifierSpec_To_unversioned_VerifierSpec(in *VerifierSpec,
 
 func autoConvert_unversioned_VerifierSpec_To_v1alpha1_VerifierSpec(in *unversioned.VerifierSpec, out *VerifierSpec, s conversion.Scope) error {
 	out.Name = in.Name
+	// WARNING: in.Type requires manual conversion: does not exist in peer-type
 	// WARNING: in.Version requires manual conversion: does not exist in peer-type
 	out.ArtifactTypes = in.ArtifactTypes
 	out.Address = in.Address

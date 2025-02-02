@@ -22,14 +22,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/deislabs/ratify/pkg/common"
-	"github.com/deislabs/ratify/pkg/ocispecs"
-	"github.com/deislabs/ratify/pkg/referrerstore"
-	"github.com/deislabs/ratify/pkg/referrerstore/plugin"
-	"github.com/deislabs/ratify/pkg/referrerstore/types"
-	"github.com/deislabs/ratify/pkg/utils"
 	"github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/ratify-project/ratify/pkg/common"
+	"github.com/ratify-project/ratify/pkg/ocispecs"
+	"github.com/ratify-project/ratify/pkg/referrerstore"
+	"github.com/ratify-project/ratify/pkg/referrerstore/plugin"
+	"github.com/ratify-project/ratify/pkg/referrerstore/types"
+	"github.com/ratify-project/ratify/pkg/utils"
 )
 
 const skelPluginName = "skel-test-case"
@@ -54,7 +54,7 @@ func teardown() {
 }
 
 func TestPluginMain_GetBlobContent_ReturnsExpected(t *testing.T) {
-	getBlobContent := func(args *CmdArgs, subjectReference common.Reference, digest digest.Digest) ([]byte, error) {
+	getBlobContent := func(_ *CmdArgs, _ common.Reference, digest digest.Digest) ([]byte, error) {
 		return []byte(digest.String()), nil
 	}
 	environment := map[string]string{
@@ -85,7 +85,7 @@ func TestPluginMain_GetBlobContent_ReturnsExpected(t *testing.T) {
 }
 
 func TestPluginMain_GetReferenceManifest_ReturnsExpected(t *testing.T) {
-	getReferenceManifest := func(args *CmdArgs, subjectReference common.Reference, digest digest.Digest) (ocispecs.ReferenceManifest, error) {
+	getReferenceManifest := func(_ *CmdArgs, _ common.Reference, _ digest.Digest) (ocispecs.ReferenceManifest, error) {
 		return ocispecs.ReferenceManifest{
 			ArtifactType: "test-type",
 		}, nil
@@ -120,7 +120,7 @@ func TestPluginMain_GetReferenceManifest_ReturnsExpected(t *testing.T) {
 }
 
 func TestPluginMain_ListReferrers_ReturnsExpected(t *testing.T) {
-	listReferrers := func(args *CmdArgs, subjectReference common.Reference, artifactTypes []string, nextToken string, subjectDesc *ocispecs.SubjectDescriptor) (*referrerstore.ListReferrersResult, error) {
+	listReferrers := func(_ *CmdArgs, _ common.Reference, _ []string, _ string, _ *ocispecs.SubjectDescriptor) (*referrerstore.ListReferrersResult, error) {
 		return &referrerstore.ListReferrersResult{
 			NextToken: "next-token",
 			Referrers: []ocispecs.ReferenceDescriptor{
@@ -161,7 +161,7 @@ func TestPluginMain_ListReferrers_ReturnsExpected(t *testing.T) {
 
 func TestPluginMain_GetSubjectDesc_ReturnsExpected(t *testing.T) {
 	testDigest := digest.FromString("test")
-	getSubjectDesc := func(args *CmdArgs, subjectReference common.Reference) (*ocispecs.SubjectDescriptor, error) {
+	getSubjectDesc := func(_ *CmdArgs, _ common.Reference) (*ocispecs.SubjectDescriptor, error) {
 		return &ocispecs.SubjectDescriptor{Descriptor: v1.Descriptor{Digest: testDigest}}, nil
 	}
 
@@ -193,7 +193,7 @@ func TestPluginMain_GetSubjectDesc_ReturnsExpected(t *testing.T) {
 }
 
 func TestPluginMain_ErrorCases(t *testing.T) {
-	getBlobContent := func(args *CmdArgs, subjectReference common.Reference, digest digest.Digest) ([]byte, error) {
+	getBlobContent := func(_ *CmdArgs, _ common.Reference, _ digest.Digest) ([]byte, error) {
 		return nil, fmt.Errorf("simulated error")
 	}
 	environment := map[string]string{
@@ -266,7 +266,7 @@ func TestPluginMain_ErrorCases(t *testing.T) {
 }
 
 func TestPluginMain_GetBlobContent_ErrorCases(t *testing.T) {
-	getBlobContent := func(args *CmdArgs, subjectReference common.Reference, digest digest.Digest) ([]byte, error) {
+	getBlobContent := func(_ *CmdArgs, _ common.Reference, digest digest.Digest) ([]byte, error) {
 		return []byte(digest.String()), nil
 	}
 	environment := map[string]string{
@@ -301,7 +301,7 @@ func TestPluginMain_GetBlobContent_ErrorCases(t *testing.T) {
 }
 
 func TestPluginMain_ListReferrers_ErrorCases(t *testing.T) {
-	listReferrers := func(args *CmdArgs, subjectReference common.Reference, artifactTypes []string, nextToken string, subjectDesc *ocispecs.SubjectDescriptor) (*referrerstore.ListReferrersResult, error) {
+	listReferrers := func(_ *CmdArgs, _ common.Reference, _ []string, _ string, _ *ocispecs.SubjectDescriptor) (*referrerstore.ListReferrersResult, error) {
 		return &referrerstore.ListReferrersResult{
 			NextToken: "next-token",
 			Referrers: []ocispecs.ReferenceDescriptor{

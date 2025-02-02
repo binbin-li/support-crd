@@ -22,11 +22,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/deislabs/ratify/config"
-	"github.com/deislabs/ratify/internal/logger"
-	sf "github.com/deislabs/ratify/pkg/referrerstore/factory"
-	su "github.com/deislabs/ratify/pkg/referrerstore/utils"
-	"github.com/deislabs/ratify/pkg/utils"
+	"github.com/ratify-project/ratify/config"
+	"github.com/ratify-project/ratify/internal/logger"
+	sf "github.com/ratify-project/ratify/pkg/referrerstore/factory"
+	su "github.com/ratify-project/ratify/pkg/referrerstore/utils"
+	"github.com/ratify-project/ratify/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -54,7 +54,7 @@ func NewCmdResolve(argv ...string) *cobra.Command {
 		Short:   "Resolve digest of a subject that is referenced by a tag",
 		Example: eg,
 		Args:    cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			return resolve(opts)
 		},
 	}

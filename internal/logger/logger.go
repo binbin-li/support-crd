@@ -22,9 +22,10 @@ import (
 	"time"
 
 	logstash "github.com/bshuster-repo/logrus-logstash-hook"
-	re "github.com/deislabs/ratify/errors"
 	dcontext "github.com/docker/distribution/context"
 	"github.com/google/uuid"
+	re "github.com/ratify-project/ratify/errors"
+	icontext "github.com/ratify-project/ratify/internal/context"
 	"github.com/sirupsen/logrus"
 )
 
@@ -60,12 +61,16 @@ const (
 	Executor componentType = "executor"
 	// Server is the component type for the Ratify http server.
 	Server componentType = "server"
+	// CommandLine is the component type for the Ratify command line.
+	CommandLine componentType = "commandLine"
 	// ReferrerStore is the component type for the referrer store.
 	ReferrerStore componentType = "referrerStore"
 	// Cache is the component type for the cache.
 	Cache componentType = "cache"
 	// CertProvider is the component type for certificate provider.
 	CertProvider componentType = "certificateProvider"
+	// KeyManagementProvider is the component type for key management provider.
+	KeyManagementProvider componentType = "keyManagementProvider"
 	// AuthProvider is the component type for auth provider.
 	AuthProvider componentType = "authProvider"
 	// PolicyProvider is the component type for policy provider.
@@ -91,8 +96,18 @@ func InitContext(ctx context.Context, r *http.Request) context.Context {
 
 // GetLogger returns a logger with provided values.
 func GetLogger(ctx context.Context, opt Option) dcontext.Logger {
+	ctx = dcontext.WithLogger(ctx, dcontext.GetLogger(ctx, icontext.ContextKeyNamespace))
 	ctx = context.WithValue(ctx, ContextKeyComponentType, opt.ComponentType)
 	return dcontext.GetLogger(ctx, ContextKeyComponentType)
+}
+
+// GetTraceID returns the trace ID from the context.
+func GetTraceID(ctx context.Context) string {
+	traceID := ctx.Value(ContextKeyTraceID)
+	if traceID == nil {
+		return ""
+	}
+	return traceID.(string)
 }
 
 // setTraceID sets the trace ID in the context. If the trace ID is not present in the request headers, a new one is generated.

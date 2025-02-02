@@ -26,14 +26,16 @@ export ACR_NAME="${ACR_NAME:-ratifyacr${SUFFIX}}"
 export AKS_NAME="${AKS_NAME:-ratify-aks-${SUFFIX}}"
 export KEYVAULT_NAME="${KEYVAULT_NAME:-ratify-akv-${SUFFIX}}"
 export USER_ASSIGNED_IDENTITY_NAME="${USER_ASSIGNED_IDENTITY_NAME:-ratify-e2e-identity-${SUFFIX}}"
-export LOCATION="eastus"
-export KUBERNETES_VERSION=${1:-1.27.7}
-GATEKEEPER_VERSION=${2:-3.15.0}
+export LOCATION="westus2"
+export KUBERNETES_VERSION=${1:-1.30.6}
+GATEKEEPER_VERSION=${2:-3.18.0}
 TENANT_ID=$3
 export RATIFY_NAMESPACE=${4:-gatekeeper-system}
 CERT_DIR=${5:-"~/ratify/certs"}
+export AZURE_SP_OBJECT_ID=$6
 export NOTATION_PEM_NAME="notation"
 export NOTATION_CHAIN_PEM_NAME="notationchain"
+export KEYVAULT_KEY_NAME="test-key"
 
 TAG="test${SUFFIX}"
 REGISTRY="${ACR_NAME}.azurecr.io"
@@ -64,21 +66,21 @@ deploy_ratify() {
     --set image.crdRepository=${REGISTRY}/test/localbuildcrd \
     --set image.tag=${TAG} \
     --set gatekeeper.version=${GATEKEEPER_VERSION} \
-    --set akvCertConfig.enabled=true \
-    --set akvCertConfig.vaultURI=${VAULT_URI} \
-    --set akvCertConfig.certificates[0].name=${NOTATION_PEM_NAME} \
-    --set akvCertConfig.certificates[1].name=${NOTATION_CHAIN_PEM_NAME} \
-    --set akvCertConfig.tenantId=${TENANT_ID} \
+    --set azurekeyvault.enabled=true \
+    --set azurekeyvault.vaultURI=${VAULT_URI} \
+    --set azurekeyvault.certificates[0].name=${NOTATION_PEM_NAME} \
+    --set azurekeyvault.certificates[1].name=${NOTATION_CHAIN_PEM_NAME} \
+    --set azurekeyvault.tenantId=${TENANT_ID} \
     --set oras.authProviders.azureWorkloadIdentityEnabled=true \
     --set azureWorkloadIdentity.clientId=${IDENTITY_CLIENT_ID} \
-    --set-file cosign.key=".staging/cosign/cosign.pub" \
+    --set azurekeyvault.keys[0].name=${KEYVAULT_KEY_NAME} \
     --set featureFlags.RATIFY_CERT_ROTATION=true \
     --set logger.level=debug
 
   kubectl delete verifiers.config.ratify.deislabs.io/verifier-cosign
 
-  kubectl apply -f https://deislabs.github.io/ratify/library/default/template.yaml
-  kubectl apply -f https://deislabs.github.io/ratify/library/default/samples/constraint.yaml
+  kubectl apply -f https://ratify-project.github.io/ratify/library/default/template.yaml
+  kubectl apply -f https://ratify-project.github.io/ratify/library/default/samples/constraint.yaml
 }
 
 upload_cert_to_akv() {
@@ -105,6 +107,14 @@ upload_cert_to_akv() {
     -p @./test/bats/tests/config/akvpolicy.json
 }
 
+create_key_akv() {
+  az keyvault key create \
+    --vault-name ${KEYVAULT_NAME} \
+    -n ${KEYVAULT_KEY_NAME} \
+    --kty RSA \
+    --size 2048
+}
+
 save_logs() {
   echo "Saving logs"
   local LOG_SUFFIX="${KUBERNETES_VERSION}-${GATEKEEPER_VERSION}"
@@ -117,6 +127,12 @@ save_logs() {
 cleanup() {
   save_logs || true
 
+  echo "Delete key vault"
+  az keyvault delete --name "${KEYVAULT_NAME}" --resource-group "${GROUP_NAME}" || true
+
+  echo "Purge key vault"
+  az keyvault purge --name "${KEYVAULT_NAME}" --no-wait || true
+
   echo "Deleting group"
   az group delete --name "${GROUP_NAME}" --yes --no-wait || true
 }
@@ -125,17 +141,20 @@ trap cleanup EXIT
 
 main() {
   ./scripts/create-azure-resources.sh
+  create_key_akv
 
   local ACR_USER_NAME="00000000-0000-0000-0000-000000000000"
   local ACR_PASSWORD=$(az acr login --name ${ACR_NAME} --expose-token --output tsv --query accessToken)
-  make e2e-azure-setup TEST_REGISTRY=$REGISTRY TEST_REGISTRY_USERNAME=${ACR_USER_NAME} TEST_REGISTRY_PASSWORD=${ACR_PASSWORD}
+  make e2e-azure-setup TEST_REGISTRY=$REGISTRY TEST_REGISTRY_USERNAME=${ACR_USER_NAME} TEST_REGISTRY_PASSWORD=${ACR_PASSWORD} KEYVAULT_KEY_NAME=${KEYVAULT_KEY_NAME} KEYVAULT_NAME=${KEYVAULT_NAME}
 
   build_push_to_acr
   upload_cert_to_akv
   deploy_gatekeeper
   deploy_ratify
 
-  TEST_REGISTRY=$REGISTRY bats -t ./test/bats/azure-test.bats
+  local IDENTITY_CLIENT_ID=$(az identity show --name ${USER_ASSIGNED_IDENTITY_NAME} --resource-group ${GROUP_NAME} --query 'clientId' -o tsv)
+  local VAULT_URI=$(az keyvault show --name ${KEYVAULT_NAME} --resource-group ${GROUP_NAME} --query "properties.vaultUri" -otsv)
+  TEST_REGISTRY=$REGISTRY IDENTITY_CLIENT_ID=$IDENTITY_CLIENT_ID VAULT_URI=$VAULT_URI bats -t ./test/bats/azure-test.bats
 }
 
 main

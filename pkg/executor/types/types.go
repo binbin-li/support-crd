@@ -18,7 +18,7 @@ package types
 import (
 	"fmt"
 
-	"github.com/deislabs/ratify/pkg/verifier/types"
+	"github.com/ratify-project/ratify/pkg/verifier/types"
 )
 
 // VerifyResult describes the results of verifying a subject
@@ -29,6 +29,7 @@ type VerifyResult struct {
 
 // NestedVerifierReport describes the results of verifying an artifact and its
 // nested artifacts by available verifiers.
+// Note: NestedVerifierReport is used for verification results in v1.
 type NestedVerifierReport struct {
 	Subject         string                 `json:"subject"`
 	ReferenceDigest string                 `json:"referenceDigest"`
