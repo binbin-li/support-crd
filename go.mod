@@ -46,6 +46,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/owenrumney/go-sarif/v2 v2.3.3
 	github.com/pkg/errors v0.9.1
+	github.com/ratify-project/ratify-go v0.0.0-20250210030230-fce66985bcc3
 	github.com/sigstore/cosign/v2 v2.2.4
 	github.com/sigstore/sigstore v1.8.12
 	github.com/sirupsen/logrus v1.9.3
